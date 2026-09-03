@@ -28,7 +28,8 @@ export function createSorobanRouter(sorobanService: SorobanService): Router {
   router.get('/events', async (req: Request, res: Response, next: NextFunction) => {
     try {
       const contractId = req.query.contractId as string | undefined;
-      const startLedger = req.query.startLedger ? parseInt(req.query.startLedger as string, 10) : undefined;
+      const parsedLedger = req.query.startLedger ? parseInt(req.query.startLedger as string, 10) : undefined;
+      const startLedger = parsedLedger && !isNaN(parsedLedger) && parsedLedger > 0 ? parsedLedger : undefined;
 
       const events = await sorobanService.getSorobanEvents(contractId, startLedger);
       res.json(createSuccessResponse(events));

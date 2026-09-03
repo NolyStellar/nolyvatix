@@ -4,7 +4,7 @@
  */
 
 export * from './horizonClient.js';
-export * from './sorobanClient.js';
+export * from '../../clients/sorobanClient.js';
 export * from './stellarAssetService.js';
 export * from './stellarWalletService.js';
 export * from './stellarLiquidityService.js';

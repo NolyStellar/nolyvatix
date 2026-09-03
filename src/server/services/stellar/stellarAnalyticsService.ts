@@ -5,7 +5,7 @@
  */
 
 import { StellarHorizonClient } from './horizonClient.js';
-import { StellarSorobanClient } from './sorobanClient.js';
+import { SorobanClient } from '../../clients/sorobanClient.js';
 import { StellarCache } from '../../cache/stellarCache.js';
 import { StellarLedger, StellarTransaction, NetworkHealth } from '../../types/stellar.js';
 import { Logger } from '../../utils/logger.js';
@@ -36,12 +36,12 @@ export interface AggregatedNetworkAnalytics {
 
 export class StellarAnalyticsService {
   private horizonClient: StellarHorizonClient;
-  private sorobanClient: StellarSorobanClient;
+  private sorobanClient: SorobanClient;
   private cache: StellarCache;
 
   constructor(
     horizonClient: StellarHorizonClient,
-    sorobanClient: StellarSorobanClient,
+    sorobanClient: SorobanClient,
     cache: StellarCache
   ) {
     this.horizonClient = horizonClient;
@@ -124,7 +124,10 @@ export class StellarAnalyticsService {
       // Fetch Soroban metrics
       let sorobanInvocations = 425000;
       try {
-        const eventsRes = await this.sorobanClient.getEvents({ pagination: { limit: 10 } });
+        const eventsRes = await this.sorobanClient.getEvents({
+          startLedger: Math.max(1, latest.sequence - 50),
+          pagination: { limit: 10 },
+        });
         if (eventsRes && eventsRes.events) {
           sorobanInvocations = Math.max(eventsRes.events.length * 1000, 380000);
         }

@@ -67,7 +67,7 @@ Whether you're fixing a bug, adding a new Soroban contract decoder feature, impr
 Contributors should be aware of the following ongoing architecture states:
 1. **Zero-Configuration In-Memory Persistence**: While full Drizzle ORM schemas exist (`src/db/schema.ts`), deterministic migration scripts and Docker Compose are not yet implemented. Repositories automatically use in-memory collections when database variables are unset.
 2. **Web3 Wallet Flow**: The wallet connection modal currently simulates connection state (`connectMockWallet`). Native browser extension integration (`@stellar/freighter-api`) and cryptographic Ed25519 signature challenges are in progress.
-3. **Dual Soroban Clients**: The codebase currently maintains two Soroban client files (`src/server/clients/sorobanClient.ts` and `src/server/services/stellar/sorobanClient.ts`), which are scheduled for consolidation under task ARCH-01.
+3. **Canonical Soroban Client**: Consolidated under ARCH-01. All Soroban RPC operations are unified in `src/server/clients/sorobanClient.ts` with exponential backoff retries, health diagnostics, and fee estimations.
 
 ---
 

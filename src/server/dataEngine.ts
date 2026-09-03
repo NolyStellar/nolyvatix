@@ -12,7 +12,7 @@ import { MemoryCache, globalCache } from './cache/memoryCache.ts';
 import { StellarCache, globalStellarCache } from './cache/stellarCache.ts';
 
 // Specialized Live Clients & Services
-import { StellarHorizonClient, StellarSorobanClient } from './services/stellar/index.ts';
+import { StellarHorizonClient } from './services/stellar/index.ts';
 import { StellarAssetService } from './services/stellar/stellarAssetService.ts';
 import { StellarWalletService } from './services/stellar/stellarWalletService.ts';
 import { StellarLiquidityService } from './services/stellar/stellarLiquidityService.ts';
@@ -138,16 +138,13 @@ export function initializeDataEngine(
   const stellarHorizonClient = new StellarHorizonClient({
     network: horizonClient.getNetwork(),
   });
-  const stellarSorobanClient = new StellarSorobanClient({
-    network: sorobanClient.getNetwork(),
-  });
 
   const stellarAssetService = new StellarAssetService(stellarHorizonClient, stellarCache);
   const stellarWalletService = new StellarWalletService(stellarHorizonClient, stellarCache);
   const stellarLiquidityService = new StellarLiquidityService(stellarHorizonClient, stellarCache);
   const stellarAnalyticsService = new StellarAnalyticsService(
     stellarHorizonClient,
-    stellarSorobanClient,
+    sorobanClient,
     stellarCache
   );
 
@@ -157,7 +154,7 @@ export function initializeDataEngine(
     stellarAssetService,
     stellarLiquidityService,
     stellarHorizonClient,
-    stellarSorobanClient,
+    sorobanClient,
     stellarCache
   );
 
@@ -208,7 +205,7 @@ export function initializeDataEngine(
   const apiRouter = Router();
 
   // Public System Health & Diagnostics
-  apiRouter.use('/health', createHealthRouter(stellarHorizonClient, stellarSorobanClient, stellarCache, eventBus));
+  apiRouter.use('/health', createHealthRouter(stellarHorizonClient, sorobanClient, stellarCache, eventBus));
 
   // Real-Time Server-Sent Events (SSE)
   apiRouter.use('/stream', createStreamRouter(eventBus));

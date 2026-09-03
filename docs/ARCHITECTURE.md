@@ -264,14 +264,14 @@ Implemented in `src/server/services/aiService.ts` using `@google/genai` (Gemini 
 
 ---
 
-## 10. Known Technical Debt & Architecture Refactoring
+## 10. Canonical Client Architecture & Technical Debt Resolution
 
-### Dual Soroban Client Implementation (Scheduled for ARCH-01)
-The codebase currently contains two Soroban client implementations:
-1. `src/server/clients/sorobanClient.ts`: General-purpose Soroban JSON-RPC client with caching.
-2. `src/server/services/stellar/sorobanClient.ts`: Service-level client with contract simulation and event polling.
-
-**Reconciliation Plan (ARCH-01)**: Consolidate both files into a single, unified client residing in `src/server/clients/sorobanClient.ts`, providing connection pooling, configurable retries, structured error handling, and unified caching.
+### Canonical Soroban Client Implementation (Consolidated under ARCH-01)
+The Soroban JSON-RPC client layer is unified into a single canonical implementation at `src/server/clients/sorobanClient.ts`:
+- **Core RPC Protocol**: Implements typed JSON-RPC 2.0 requests (`getHealth`, `getFeeStats`, `getLatestLedger`, `getNetworkInfo`, `getEvents`, `simulateTransaction`, `sendTransaction`, `getTransaction`).
+- **Resilience & Polling**: Configurable jittered exponential backoff retries (`maxRetries = 3`, `baseDelayMs = 300`), AbortController timeouts, and trailing-slash sanitization.
+- **Diagnostics & Health**: Live error rate calculation, latency measurement, consecutive error tracking, and graceful fallback handling during network degradation.
+- **Backward Compatibility**: Canonical aliases (`StellarSorobanClient`, `SOROBAN_NETWORKS`, `defaultStellarSorobanClient`) and re-exports from `src/server/services/stellar/index.ts` preserve compatibility across all service consumers.
 
 ---
 

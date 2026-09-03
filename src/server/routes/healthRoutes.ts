@@ -5,14 +5,14 @@
 
 import { Router, Request, Response } from 'express';
 import { StellarHorizonClient } from '../services/stellar/horizonClient.js';
-import { StellarSorobanClient } from '../services/stellar/sorobanClient.js';
+import { SorobanClient } from '../clients/sorobanClient.js';
 import { StellarCache } from '../cache/stellarCache.js';
 import { StellarEventBus } from '../services/stellar/stellarEventBus.js';
 import { formatSuccessResponse } from '../middleware/responseWrapper.js';
 
 export function createHealthRouter(
   horizonClient: StellarHorizonClient,
-  sorobanClient: StellarSorobanClient,
+  sorobanClient: SorobanClient,
   cache: StellarCache,
   eventBus: StellarEventBus
 ): Router {

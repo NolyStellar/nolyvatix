@@ -44,7 +44,8 @@ The following features and architectural layers are fully implemented, verified,
 - [x] **Dual-Tier In-Memory Caching**: `MemoryCache` and `StellarCache` with TTL expiry, hit/miss tracking, and regex key invalidation.
 - [x] **Database Schema & In-Memory Fallbacks**: 11 relational tables defined via Drizzle ORM (`src/db/schema.ts`) with automatic fallback to in-memory repositories when PostgreSQL variables are omitted.
 - [x] **Authentication & Tenant Isolation**: Firebase ID token verification middleware with JIT local user provisioning and development operator fallback.
-- [x] **Backend Test Suite**: 36 unit and integration test cases across 12 suites running via native Node.js test runner (`npm test`).
+- [x] **Backend Test Suite**: 46 unit and integration test cases across 13 suites running via native Node.js test runner (`npm test`).
+- [x] **Canonical Soroban Client Consolidation (Task ARCH-01)**: Reconciled and consolidated duplicate client implementations into a single canonical `SorobanClient` (`src/server/clients/sorobanClient.ts`) with retry logic, telemetry, fee stats, and health diagnostics.
 
 ---
 
@@ -55,9 +56,6 @@ The following items are actively in progress during Phase 1:
 - [ ] **Real Web3 Wallet Integration**:
   - *Current Status*: Interactive wallet modal with simulated connection state (`connectMockWallet`).
   - *Next Step*: Implement browser extension injection (`@stellar/freighter-api`, Albedo) and Ed25519 cryptographic challenge/response signature verification.
-- [ ] **Duplicate Soroban Client Consolidation (Task ARCH-01)**:
-  - *Current Status*: Dual implementations exist in `src/server/clients/sorobanClient.ts` and `src/server/services/stellar/sorobanClient.ts`.
-  - *Next Step*: Reconcile both into a single, unified client with connection pooling, retries, and comprehensive error handling.
 - [ ] **Deterministic Database Migration Pipeline**:
   - *Current Status*: Drizzle ORM schema is complete (`src/db/schema.ts`), but automated `.sql` migration files are not yet versioned.
   - *Next Step*: Configure deterministic `drizzle-kit generate` and automated migration application script.

@@ -10,7 +10,7 @@ import { StellarAnalyticsService } from './stellarAnalyticsService.js';
 import { StellarAssetService } from './stellarAssetService.js';
 import { StellarLiquidityService } from './stellarLiquidityService.js';
 import { StellarHorizonClient } from './horizonClient.js';
-import { StellarSorobanClient } from './sorobanClient.js';
+import { SorobanClient } from '../../clients/sorobanClient.js';
 import { StellarCache } from '../../cache/stellarCache.js';
 import { Logger } from '../../utils/logger.js';
 
@@ -49,7 +49,7 @@ export class StellarEventBus extends EventEmitter {
   private assetService: StellarAssetService;
   private liquidityService: StellarLiquidityService;
   private horizonClient: StellarHorizonClient;
-  private sorobanClient: StellarSorobanClient;
+  private sorobanClient: SorobanClient;
   private cache: StellarCache;
 
   private isRunning: boolean = false;
@@ -65,7 +65,7 @@ export class StellarEventBus extends EventEmitter {
     assetService: StellarAssetService,
     liquidityService: StellarLiquidityService,
     horizonClient: StellarHorizonClient,
-    sorobanClient: StellarSorobanClient,
+    sorobanClient: SorobanClient,
     cache: StellarCache
   ) {
     super();
