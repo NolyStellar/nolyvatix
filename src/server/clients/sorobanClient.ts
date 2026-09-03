@@ -8,8 +8,8 @@ import { Logger } from '../utils/logger.js';
 
 const logger = new Logger('SorobanClient');
 
-const SOROBAN_RPC_ENDPOINTS: Record<NetworkType, string> = {
-  mainnet: 'https://soroban-testnet.stellar.org',
+export const SOROBAN_RPC_ENDPOINTS: Record<NetworkType, string> = {
+  mainnet: 'https://mainnet.sorobanrpc.com',
   testnet: 'https://soroban-testnet.stellar.org',
   futurenet: 'https://rpc-futurenet.stellar.org',
 };
@@ -36,12 +36,21 @@ export class SorobanClient {
   private config: SorobanConfig;
 
   constructor(config?: Partial<SorobanConfig>) {
-    const network = config?.network || (process.env.VITE_STELLAR_NETWORK as NetworkType) || 'mainnet';
-    const rpcUrl = config?.rpcUrl || process.env.VITE_SOROBAN_RPC_URL || SOROBAN_RPC_ENDPOINTS[network] || SOROBAN_RPC_ENDPOINTS.mainnet;
+    const network =
+      config?.network ||
+      (process.env.STELLAR_NETWORK as NetworkType) ||
+      (process.env.VITE_STELLAR_NETWORK as NetworkType) ||
+      'mainnet';
+    const rpcUrl =
+      config?.rpcUrl ||
+      process.env.SOROBAN_RPC_URL ||
+      process.env.VITE_SOROBAN_RPC_URL ||
+      SOROBAN_RPC_ENDPOINTS[network] ||
+      SOROBAN_RPC_ENDPOINTS.mainnet;
 
     this.config = {
       network,
-      rpcUrl,
+      rpcUrl: rpcUrl.replace(/\/+$/, ''),
       timeoutMs: config?.timeoutMs || 10000,
       maxRetries: config?.maxRetries || 3,
     };
@@ -53,9 +62,17 @@ export class SorobanClient {
     return this.config.network;
   }
 
+  public getRpcUrl(): string {
+    return this.config.rpcUrl;
+  }
+
+  public getConfig(): Readonly<SorobanConfig> {
+    return { ...this.config };
+  }
+
   public setNetwork(network: NetworkType, customUrl?: string): void {
     this.config.network = network;
-    this.config.rpcUrl = customUrl || SOROBAN_RPC_ENDPOINTS[network] || SOROBAN_RPC_ENDPOINTS.mainnet;
+    this.config.rpcUrl = (customUrl || SOROBAN_RPC_ENDPOINTS[network] || SOROBAN_RPC_ENDPOINTS.mainnet).replace(/\/+$/, '');
     logger.info(`Updated SorobanClient network to: ${this.config.network} (${this.config.rpcUrl})`);
   }
 

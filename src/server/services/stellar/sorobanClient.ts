@@ -74,12 +74,21 @@ export class StellarSorobanClient {
   private consecutiveErrors: number = 0;
 
   constructor(config?: Partial<SorobanConfig>) {
-    const network = config?.network || (process.env.VITE_STELLAR_NETWORK as NetworkType) || 'mainnet';
-    const rpcUrl = config?.rpcUrl || process.env.VITE_SOROBAN_RPC_URL || SOROBAN_NETWORKS[network] || SOROBAN_NETWORKS.testnet;
+    const network =
+      config?.network ||
+      (process.env.STELLAR_NETWORK as NetworkType) ||
+      (process.env.VITE_STELLAR_NETWORK as NetworkType) ||
+      'mainnet';
+    const rpcUrl =
+      config?.rpcUrl ||
+      process.env.SOROBAN_RPC_URL ||
+      process.env.VITE_SOROBAN_RPC_URL ||
+      SOROBAN_NETWORKS[network] ||
+      SOROBAN_NETWORKS.mainnet;
 
     this.config = {
       network,
-      rpcUrl: rpcUrl.replace(/\/$/, ''),
+      rpcUrl: rpcUrl.replace(/\/+$/, ''),
       timeoutMs: config?.timeoutMs || 10000,
       maxRetries: config?.maxRetries || 3,
     };
@@ -97,7 +106,7 @@ export class StellarSorobanClient {
 
   public setNetwork(network: NetworkType, customUrl?: string): void {
     this.config.network = network;
-    this.config.rpcUrl = (customUrl || SOROBAN_NETWORKS[network] || SOROBAN_NETWORKS.testnet).replace(/\/$/, '');
+    this.config.rpcUrl = (customUrl || SOROBAN_NETWORKS[network] || SOROBAN_NETWORKS.mainnet).replace(/\/+$/, '');
     this.consecutiveErrors = 0;
     logger.info(`Soroban RPC client network updated to: ${this.config.network} (${this.config.rpcUrl})`);
   }
