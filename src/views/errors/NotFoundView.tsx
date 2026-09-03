@@ -22,7 +22,7 @@ export const NotFoundView: React.FC = () => {
             Requested Route Does Not Exist
           </h1>
           <p className="text-xs text-zinc-400 font-mono max-w-sm mx-auto leading-relaxed">
-            The workspace view, dashboard URL, or blockchain telemetry route you requested could not be located in the NovaSQL registry.
+            The workspace view, dashboard URL, or blockchain telemetry route you requested could not be located in the Nolyvatix registry.
           </p>
         </div>
 

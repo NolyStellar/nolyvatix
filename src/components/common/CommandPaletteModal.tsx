@@ -245,7 +245,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ isOpen
           </div>
           <div className="flex items-center gap-1">
             <Command className="w-3 h-3" />
-            <span>NovaSQL Quick Actions</span>
+            <span>Nolyvatix Quick Actions</span>
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 /**
- * NovaSQL / Nolyvatix - Centralized Shared Route Registry
+ * Nolyvatix - Centralized Shared Route Registry
  * Single Source of Truth for Navigation, Routing, Breadcrumbs, and Metadata
  */
 

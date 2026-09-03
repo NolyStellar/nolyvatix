@@ -1,5 +1,5 @@
 /**
- * NovaSQL / Nolyvatix - Production Unified App Router
+ * Nolyvatix - Production Unified App Router
  * Supports lazy loading, code-splitting, deep-linking, browser history, and 404/error states
  */
 
@@ -105,7 +105,7 @@ export const AppRouter: React.FC = () => {
 
     const config = getRouteConfig(activeRoute);
     if (config) {
-      document.title = `${config.label} | NovaSQL Stellar BI`;
+      document.title = `${config.label} | Nolyvatix - Stellar BI`;
     }
   }, [activeRoute]);
 
