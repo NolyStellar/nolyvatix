@@ -1,7 +1,7 @@
 # Nolyvatix - Technical Architecture Blueprint
 
-**Document Version:** 1.0.0  
-**Status:** Approved Architectural Specification  
+**Document Version:** 1.1.0  
+**Status:** Synchronized Architectural Blueprint  
 **Author:** Lead Software Architect & Principal Engineering Team  
 **Target Platform:** Stellar Blockchain Ecosystem  
 
@@ -9,90 +9,111 @@
 
 ## 1. Overall System Architecture
 
-Nolyvatix is built on a **Modular Monolith Architecture with Real-Time Event Workers**, optimized for high-throughput blockchain ingestion, sub-second query latency, and AI-driven intelligence.
+Nolyvatix is engineered as a **Full-Stack Decoupled Modular Application with Real-Time Event Streaming**, optimized for high-throughput blockchain ingestion, sub-second query latency, and AI-driven intelligence.
 
 ### High-Level System Architecture Diagram
 
 ```mermaid
 flowchart TB
-    subgraph External System & Blockchain Nodes
-        Horizon["Stellar Horizon REST/SSE APIs"]
-        SorobanRPC["Soroban JSON-RPC 2.0 Nodes"]
-        GeminiAPI["Google Gemini AI Service (@google/genai)"]
-        StellarWallets["Stellar Wallets (Freighter / Albedo)"]
+    subgraph External Blockchain & AI Services
+        Horizon["Stellar Horizon REST / SSE APIs"]
+        SorobanRPC["Soroban JSON-RPC 2.0 (mainnet.sorobanrpc.com)"]
+        GeminiAPI["Google Gemini 2.5 Flash (@google/genai)"]
+        FirebaseAuth["Firebase Authentication Service"]
     end
 
-    subgraph Ingestion & Processing Layer
-        HorizonIngestor["Horizon Stream Ingestor"]
-        SorobanIndexer["Soroban WASM Event Indexer"]
-        WorkerQueue["Background Job Engine (Redis / BullMQ)"]
+    subgraph Backend API & Data Engine (Express 4 + Node.js)
+        AuthMiddleware["Firebase Auth & Tenant Scoping (Dev Fallback)"]
+        EventBus["StellarEventBus (SSE Live Stream Gateway)"]
+        CacheLayer["Dual-Tier Caching (MemoryCache + StellarCache)"]
+        
+        subgraph Domain Services
+            LedgerService["Ledger & Throughput Service"]
+            SorobanService["Soroban APM & Event Decoder"]
+            CorridorService["Asset & Liquidity Pool Service"]
+            AIService["Gemini AI & Heuristic Synthesis Engine"]
+            DashboardService["Dashboard & Widget Engine"]
+            AlertService["Alert Rule & Notification Engine"]
+            ReportService["Report Generation & Export Service"]
+        end
+
+        subgraph Repository Layer
+            DBRepos["Drizzle ORM Relational Repositories"]
+            MemFallback["Automatic In-Memory Storage Fallback"]
+        end
     end
 
-    subgraph Data & Storage Layer
-        TimescaleDB[(PostgreSQL + TimescaleDB Hypertables)]
-        RedisCache[(Redis Cache & Pub/Sub Backplane)]
+    subgraph Persistence Layer
+        PostgreSQL[(PostgreSQL Database - 11 Drizzle Tables)]
     end
 
-    subgraph Backend API Gateway (Express Node.js)
-        AuthService["Auth & Web3 Wallet Verification"]
-        AnalyticsService["Analytics Query Service"]
-        GeminiService["Gemini AI Co-Pilot Engine"]
-        RealtimeGateway["WebSocket / SSE Realtime Hub"]
-    end
-
-    subgraph Frontend Client (React 19 + Vite)
+    subgraph Frontend Client (React 19 + Vite 6 + Tailwind v4)
         UIStateStore["Zustand Client Store"]
-        QueryCache["TanStack Query Cache"]
-        DashboardUI["Drag-and-Drop Dashboard Engine"]
-        AIWidget["Gemini AI Chat & Insights Control"]
+        QueryCache["TanStack React Query Cache"]
+        ViewRouter["AppRouter & Route Registry (12 Views)"]
+        AIWidget["Gemini AI Drawer & Synthesis Widget"]
+        WalletModal["Stellar Wallet Modal (Mock / Extension Demo)"]
     end
 
-    %% Flow Connections
-    Horizon -->|SSE Ledger Stream| HorizonIngestor
-    SorobanRPC -->|JSON-RPC Events| SorobanIndexer
-    HorizonIngestor --> TimescaleDB
-    SorobanIndexer --> TimescaleDB
-    
-    Backend API Gateway <-->|Drizzle ORM| TimescaleDB
-    Backend API Gateway <-->|Pub/Sub & Caching| RedisCache
-    
-    Backend API Gateway <-->|@google/genai| GeminiAPI
-    StellarWallets <-->|Ed25519 Signature| AuthService
-    
-    DashboardUI <--> QueryCache
-    QueryCache <-->|REST API v1| AnalyticsService
-    AIWidget <-->|NL Query API| GeminiService
-    DashboardUI <-->|WebSocket/SSE Stream| RealtimeGateway
+    %% Ingestion & Inflow
+    Horizon -->|SSE Ledger Stream| EventBus
+    Horizon -->|REST Query| LedgerService
+    SorobanRPC -->|JSON-RPC 2.0| SorobanService
+    GeminiAPI <-->|Live Context Prompting| AIService
+    FirebaseAuth <-->|ID Token Verification| AuthMiddleware
+
+    %% Backend internal flow
+    EventBus --> CacheLayer
+    LedgerService --> CacheLayer
+    SorobanService --> CacheLayer
+    LedgerService --> DBRepos
+    DashboardService --> DBRepos
+    AlertService --> DBRepos
+    DBRepos -.->|When SQL Env Vars Set| PostgreSQL
+    DBRepos -.->|Default Fallback| MemFallback
+
+    %% Client / Server interaction
+    ViewRouter <--> QueryCache
+    QueryCache <-->|HTTP REST /api/*| DomainServices
+    EventBus -->|Server-Sent Events /api/stream/events| ViewRouter
+    AIWidget <-->|POST /api/ai/query| AIService
 ```
 
 ---
 
 ## 2. Frontend Architecture
 
-The frontend is engineered as a modern, high-density Single Page Application (SPA) using **React 19**, **Vite**, **Tailwind CSS v4**, and **Motion**.
+The frontend is engineered as a modern, high-density Single Page Application (SPA) using **React 19**, **Vite 6**, **Tailwind CSS v4**, and **Motion**.
 
 ### 2.1 Core Architectural Principles
-- **Atomic Component Hierarchy**: UI built using strict atomic principles (`ui/`, `widgets/`, `views/`).
-- **High-Performance Canvas Rendering**: Standard charts rendered via **Recharts**, while high-frequency data streams (e.g., live ledger graph topology) utilize customized WebGL / D3 rendering.
-- **Zero-Layout-Shift Grid**: Dashboard widgets powered by a dynamic grid layout engine with persistent coordinate state.
+- **Atomic Component Hierarchy**: Clean separation of base components (`src/components/ui/`), shared compound widgets (`src/components/common/`), workspace frame (`src/components/layout/`), and specialized AI tools (`src/components/ai/`).
+- **Data Visualization**: Recharts provides responsive time-series charts, area graphs, bar distributions, and pie visuals with custom tooltips tailored to financial metrics.
+- **Route Registry**: Centralized routing declared in `src/router/routeRegistry.ts` syncing navigation tabs with the URL hash.
+- **Global UI State**: Zustand stores (`src/store/useAppStore.ts`) manage active view, sidebar collapsed state, active Stellar network (Mainnet vs Testnet), and wallet modal states.
 
 ---
 
 ## 3. Backend Architecture
 
-The backend utilizes an **Express + Node.js Modular Monolith** pattern with explicit service layering.
+The backend utilizes an **Express 4 Modular Monolith** pattern organized in `src/server/` and initialized via `dataEngine.ts`:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                      Express Router                     │
+│              server.ts (Entrypoint & Vite Bridge)       │
 ├─────────────────────────────────────────────────────────┤
-│ Controllers (Request validation, DTO mapping)          │
+│            17 Modular Express API Routers (/api/*)      │
+│ (ledgers, soroban, assets, dashboards, alerts, ai, etc.)│
 ├─────────────────────────────────────────────────────────┤
-│ Domain Services (Business logic, Gemini orchestration)  │
+│  Middleware (ResponseWrapper, Auth & Tenant Isolation)  │
 ├─────────────────────────────────────────────────────────┤
-│ Repositories (Data access via Drizzle ORM)             │
+│  Domain Services (Ledger, Soroban, AI, Reports, etc.)   │
 ├─────────────────────────────────────────────────────────┤
-│ Database (PostgreSQL / TimescaleDB Hypertables)         │
+│  Caching Tier (MemoryCache + StellarCache In-Memory)   │
+├─────────────────────────────────────────────────────────┤
+│  Repositories (User, Workspace, Dashboard, Alert, etc.) │
+├─────────────────────────────────────────────────────────┤
+│  Storage Tier: PostgreSQL via Drizzle ORM               │
+│  (Graceful in-memory fallback when unconfigured)        │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -100,53 +121,21 @@ The backend utilizes an **Express + Node.js Modular Monolith** pattern with expl
 
 ## 4. Database Architecture & Schema Design
 
-Powered by **PostgreSQL** with **TimescaleDB hypertables** for time-series ledger sequence data and **Drizzle ORM** for type-safe database interactions.
+Persistence is managed by **Drizzle ORM** with 11 relational tables declared in `src/db/schema.ts`. When database credentials are not provided in development, Nolyvatix seamlessly falls back to in-memory repositories.
 
-### 4.1 Key Database Tables & ERD Concept
+### 4.1 Relational Schema Overview
 
-```mermaid
-erDiagram
-    USERS ||--o{ DASHBOARDS : owns
-    USERS ||--o{ ALERTS : configures
-    LEDGERS ||--|{ TRANSACTIONS : contains
-    TRANSACTIONS ||--o{ SOROBAN_EVENTS : emits
-    ASSETS ||--o{ LIQUIDITY_POOLS : forms
-    
-    USERS {
-        uuid id PK
-        string public_key UK
-        string role
-        timestamp created_at
-    }
-    LEDGERS {
-        bigint sequence PK
-        string ledger_hash
-        integer tx_count
-        timestamp closed_at
-    }
-    TRANSACTIONS {
-        string hash PK
-        bigint ledger_sequence FK
-        string source_account
-        bigint fee_charged
-        boolean successful
-    }
-    SOROBAN_EVENTS {
-        uuid id PK
-        string tx_hash FK
-        string contract_id
-        string type
-        jsonb topic_xdr
-        jsonb data_xdr
-    }
-    DASHBOARDS {
-        uuid id PK
-        uuid user_id FK
-        string title
-        jsonb layout_config
-        boolean is_public
-    }
-```
+1. `users`: Local user profile synchronized from Firebase Auth (`uid`, `email`, `role`, `tier`).
+2. `workspaces`: Team workspace containers (`slug`, `owner_id`, `settings`).
+3. `workspace_members`: User-to-workspace membership and permissions.
+4. `dashboards`: Custom dashboard layouts (`layout_config`, `is_default`, `is_public`).
+5. `dashboard_widgets`: Individual analytical widgets embedded in dashboards.
+6. `alert_rules`: Anomaly trigger thresholds (`metric_name`, `condition`, `threshold`).
+7. `alert_history`: Historical alert trigger events and acknowledgment states.
+8. `saved_reports`: Generated report metadata, schedule, and configuration.
+9. `user_preferences`: UI theme, active network, and notification preferences.
+10. `soroban_contracts_registry`: Tracked smart contracts (`contract_id`, `wasm_hash`, `verified`).
+11. `api_keys`: Workspace API keys for programmatic data access.
 
 ---
 
@@ -154,243 +143,181 @@ erDiagram
 
 ```
 /
-├── docs/
+├── docs/                          # Technical Architecture & Specifications
+│   ├── ARCHITECTURE.md            # System Architecture Blueprint
 │   ├── PRD.md                     # Product Requirements Document
-│   └── ARCHITECTURE.md            # Technical Blueprint Document
-├── server/
-│   ├── config/                    # Environment & Server Config
-│   ├── controllers/               # Express Request Route Handlers
-│   ├── services/                  # Business Logic & External APIs
-│   │   ├── horizon.service.ts     # Horizon API Client
-│   │   ├── soroban.service.ts     # Soroban RPC Client
-│   │   └── gemini.service.ts      # @google/genai Client
-│   ├── db/                        # Database Schema & Drizzle Setup
-│   │   ├── schema.ts              # Drizzle Schema Definitions
-│   │   └── migrations/            # Drizzle Migration Scripts
-│   ├── ingestors/                 # Ledger & Event Stream Processors
-│   ├── middleware/                # Auth, Rate Limit, Error Handling
-│   └── server.ts                  # Server Entry Point
-├── src/
-│   ├── components/                # React Components
-│   │   ├── ui/                    # Reusable Base Components
-│   │   ├── widgets/               # BI Dashboard Cards & Visuals
-│   │   ├── soroban/               # Soroban APM Components
-│   │   └── ai/                    # Gemini AI Assistant Components
-│   ├── hooks/                     # Custom React Hooks
-│   ├── store/                     # Zustand UI Stores
-│   ├── types/                     # Shared TypeScript Types
-│   ├── App.tsx                    # Main App Shell
-│   └── main.tsx                   # Frontend Mounting
-├── metadata.json                  # Application Metadata
+│   ├── LABELS.md                  # GitHub Label Taxonomy
+│   └── PROJECT_BOARD.md           # Project Board Milestones
+├── src/                           # Application Source Code
+│   ├── components/                # React Design System
+│   │   ├── ai/                    # Gemini AI Drawer & Insights
+│   │   ├── common/                # StatCard, ChartContainer, CommandPalette
+│   │   ├── layout/                # AppHeader, Sidebar, WorkspaceHeader, Footer
+│   │   └── ui/                    # Button, GlassCard, Badge, Input, Modal
+│   ├── db/                        # Database Layer (Drizzle ORM)
+│   │   ├── schema.ts              # 11 Relational Drizzle Schema Tables
+│   │   ├── index.ts               # Connection Pool & In-Memory Fallback Detector
+│   │   └── drizzle.config.ts      # Drizzle Kit Configuration
+│   ├── lib/                       # Utility Functions (formatting, cn, storage)
+│   ├── router/                    # AppRouter & Route Registry
+│   ├── server/                    # Modular Express Server Architecture
+│   │   ├── __tests__/             # Backend Test Suites (node:test via tsx)
+│   │   ├── cache/                 # MemoryCache & StellarCache
+│   │   ├── clients/               # HorizonClient, SorobanClient, FirebaseAdmin
+│   │   ├── dataEngine.ts          # Dependency Injection Gateway
+│   │   ├── middleware/            # Auth, Tenant Isolation, Response Wrapper
+│   │   ├── repositories/          # Domain & DB Repositories (with In-Memory Fallback)
+│   │   ├── routes/                # 17 Modular API Routers
+│   │   ├── services/              # Domain Business Services
+│   │   └── utils/                 # Structured Logger & Envelope Helpers
+│   ├── services/                  # Frontend API Services & Stream Clients
+│   ├── store/                     # Zustand Global State
+│   ├── types/                     # TypeScript Domain Models & Interfaces
+│   ├── views/                     # 12 Specialized Analytics Views
+│   ├── App.tsx                    # Root Application Component
+│   ├── index.css                  # Tailwind CSS v4 Global Design Tokens
+│   └── main.tsx                   # Frontend Mounting Entrypoint
+├── .env.example                   # Environment Template
+├── CONTRIBUTING.md                # Contributor Setup & Coding Standards
+├── LICENSE                        # MIT License
+├── ROADMAP.md                     # Feature Roadmap (Completed, In-Progress, Planned)
+├── SECURITY.md                    # Security & Vulnerability Disclosure Policy
+├── server.ts                      # Express Server Entrypoint
 └── package.json                   # Dependencies & Build Scripts
 ```
 
 ---
 
-## 6. Component Hierarchy
+## 6. API Structure (Mounted RESTful Endpoints)
 
-```
-App
-├── AppHeader (Network Status, Ledger Pulse, Wallet Connect Button)
-├── NavigationSidebar (Command Center, Soroban APM, Assets & Pools, AI Co-Pilot, Settings)
-└── MainWorkspace
-    ├── CommandCenterView
-    │   ├── LedgerMetricsBanner (TPS, Avg Close, Total Volume)
-    │   ├── LiveLedgerFeedTable
-    │   └── CorridorVolumeChart
-    ├── SorobanInspectorView
-    │   ├── ContractSearchBar
-    │   ├── InvocationGasGraph
-    │   └── EventDecoderStream
-    ├── CustomDashboardView
-    │   ├── DashboardToolbar (Add Widget, Grid Layout, Export PDF)
-    │   └── DraggableWidgetGrid
-    │       ├── MetricCardWidget
-    │       ├── TimeseriesChartWidget
-    │       └── AssetDistributionPieWidget
-    └── GeminiAICoPilotDrawer
-        ├── ChatThreadHistory
-        ├── QueryInputBar ("Ask Gemini")
-        └── AutoInsightCard (Generated Chart + AI Narrative)
-```
-
----
-
-## 7. API Structure (RESTful Endpoints)
+All API endpoints are mounted on the Express application via `src/server/dataEngine.ts`:
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| **GET** | `/api/v1/health` | Service & RPC connectivity health check |
-| **GET** | `/api/v1/ledger/latest` | Returns latest ledger sequence & metrics |
-| **GET** | `/api/v1/ledger/history` | Historical TPS and volume timeseries |
-| **GET** | `/api/v1/soroban/contracts/:id` | Contract performance, gas usage & events |
-| **GET** | `/api/v1/assets/corridors` | Cross-border anchor volume metrics |
-| **POST**| `/api/v1/ai/query` | Gemini AI NL-to-Analytics query handler |
-| **POST**| `/api/v1/ai/explain-anomaly` | AI summary for specific ledger anomaly |
-| **POST**| `/api/v1/auth/challenge` | Generates nonce for wallet signature |
-| **POST**| `/api/v1/auth/verify` | Verifies wallet signature & issues JWT |
+| **GET** | `/api/health` | Comprehensive health check (Horizon, Soroban, DB, Uptime) |
+| **GET** | `/api/ledgers/latest` | Returns latest ledger sequence, base fee, and operations count |
+| **GET** | `/api/ledgers/history` | Historical TPS and volume timeseries data |
+| **GET** | `/api/stream/events` | Server-Sent Events (SSE) stream of real-time ledger closes |
+| **GET** | `/api/soroban/contracts/:id` | Contract lookup, gas consumption, and invocation history |
+| **GET** | `/api/soroban/events` | Soroban WASM event log stream |
+| **GET** | `/api/assets/corridors` | Cross-border anchor volume and velocity telemetry |
+| **GET** | `/api/assets/liquidity-pools` | AMM liquidity pool TVL and volume analytics |
+| **GET** | `/api/dashboards` | List user dashboards (with default fallback) |
+| **POST**| `/api/dashboards` | Create or update custom dashboard layout |
+| **GET** | `/api/alerts` | List configured alert rules and triggered incidents |
+| **POST**| `/api/alerts` | Create or update alert threshold rule |
+| **GET** | `/api/reports` | List generated executive reports |
+| **POST**| `/api/reports/generate` | Trigger on-demand report generation |
+| **POST**| `/api/ai/query` | Gemini AI natural-language-to-analytics query handler |
+| **GET** | `/api/users/me` | Current authenticated user profile |
+| **GET** | `/api/workspaces/current` | Active tenant workspace configuration |
 
 ---
 
-## 8. Authentication Flow (Stellar Wallet Web3 Auth)
+## 7. Authentication & Tenant Isolation Flow
+
+Current authentication utilizes **Firebase ID token verification** alongside a robust **Development Operator Fallback**:
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor User
     participant Frontend
-    participant Backend API
-    participant StellarWallet as Wallet (Freighter/Albedo)
+    participant AuthMiddleware as Express AuthMiddleware
+    participant FirebaseAdmin as Firebase Admin SDK
+    participant UserRepo as UserDbRepository
 
-    User->>Frontend: Click "Connect Stellar Wallet"
-    Frontend->>StellarWallet: Request Public Key
-    StellarWallet-->>Frontend: Returns Public Key (e.g., GABC...)
-    Frontend->>Backend API: POST /api/v1/auth/challenge { publicKey }
-    Backend API-->>Frontend: Returns Nonce / Challenge Message
-    Frontend->>StellarWallet: Request Signature for Nonce
-    StellarWallet-->>User: Prompt Wallet Confirmation
-    User->>StellarWallet: Approve Signature
-    StellarWallet-->>Frontend: Returns Cryptographic Signature
-    Frontend->>Backend API: POST /api/v1/auth/verify { publicKey, signature, nonce }
-    Note over Backend API: Verifies Ed25519 Signature using stellar-sdk
-    Backend API-->>Frontend: Issues HttpOnly JWT Session Cookie
+    User->>Frontend: Access Dashboard / API
+    alt Live Firebase Token Provided
+        Frontend->>AuthMiddleware: Header Authorization: Bearer <ID_TOKEN>
+        AuthMiddleware->>FirebaseAdmin: verifyIdToken(token)
+        FirebaseAdmin-->>AuthMiddleware: Decoded Token (uid, email)
+        AuthMiddleware->>UserRepo: findOrCreateByUid(uid, email)
+        UserRepo-->>AuthMiddleware: User Record Attached to req.user
+    else No Token + ALLOW_DEV_FALLBACK=true (Local Development)
+        AuthMiddleware->>UserRepo: getOrCreateDefaultUser()
+        UserRepo-->>AuthMiddleware: Default Operator Identity (req.user)
+    else No Token in Production
+        AuthMiddleware-->>Frontend: 401 Unauthorized (AUTH_REQUIRED)
+    end
 ```
 
----
-
-## 9. State Management Strategy
-
-1. **Server State (TanStack Query v5)**
-   - Manages all remote API requests, query caching, background polling, and optimistic updates.
-   - Cache keys: `['ledgers', sequence]`, `['soroban', contractId]`, `['dashboards', id]`.
-
-2. **Client UI State (Zustand)**
-   - Manages local drawer toggles, active filter selections, wallet connection status, and drag-and-drop dashboard grid configurations.
+### Web3 Wallet Integration Status
+- **Current**: Interactive modal supporting Freighter and Albedo with simulated connection (`connectMockWallet`).
+- **Roadmap (In Progress)**: Full browser extension injection (`@stellar/freighter-api`) and Ed25519 cryptographic challenge-response signature verification.
 
 ---
 
-## 10. Stellar Horizon Integration
+## 8. Caching Strategy
 
-- Built using official `@stellar/stellar-sdk`.
-- **Stream Ingestion**: Connects to `/ledgers` Server-Sent Events stream for real-time ledger closes.
-- **Failover Strategy**: Configured with a pool of fallback Horizon instances (e.g., SDF Public, Lobstr, Blockdaemon).
-
----
-
-## 11. Soroban RPC Integration
-
-- Interacts with Soroban JSON-RPC 2.0 endpoints using `soroban-client`.
-- **Event Filtering**: Polls `getEvents` RPC method filtered by `topics` and `contractIds`.
-- **Gas Profiler**: Extracts `cpuInsns` and `memBytes` from transaction execution logs to calculate WASM resource usage.
+Nolyvatix utilizes an in-memory dual-tier caching layer:
+1. **MemoryCache (`src/server/cache/memoryCache.ts`)**: Generic key-value cache with TTL expiry, maximum entry size eviction, hit/miss metrics, and regex pattern invalidation.
+2. **StellarCache (`src/server/cache/stellarCache.ts`)**: Specialized cache pre-configured with domain namespaces (`ledger`, `soroban`, `assets`, `analytics`) and TTLs tailored to ledger close frequencies (typically 5 to 60 seconds).
 
 ---
 
-## 12. Google Gemini Integration
+## 9. Google Gemini AI Integration
 
-Integrated server-side via `@google/genai` using the `gemini-2.5-flash` model.
-
-### 12.1 Implementation Pattern
-- **NL-to-Analytics**: User asks a query -> Gemini converts prompt into structured JSON query parameters -> Server queries database -> Gemini generates narrative insights alongside rendered charts.
-- **Security Guardrail**: Gemini API key is maintained exclusively on the server (`process.env.GEMINI_API_KEY`) and never exposed to the client.
+Implemented in `src/server/services/aiService.ts` using `@google/genai` (Gemini 2.5 Flash):
+- **Live Stellar Context Injection**: Before querying Gemini, the service injects live Horizon metrics (latest sequence, TPS, base fee, corridor volumes) into the prompt.
+- **Rule-Based Heuristic Fallback**: If `GEMINI_API_KEY` is not provided in the environment, the service automatically synthesizes structured analytics using deterministic heuristics rather than failing, ensuring zero-configuration usability.
 
 ---
 
-## 13. Real-Time Update Architecture (WebSocket / SSE)
+## 10. Known Technical Debt & Architecture Refactoring
 
-- **Protocol**: Server-Sent Events (SSE) for ledger broadcasts; WebSocket (`ws`) for bidirectional dashboard controls.
-- **Pub/Sub Backplane**: Powered by Redis Pub/Sub to fan out ledger events across multiple horizontal Express container instances.
+### Dual Soroban Client Implementation (Scheduled for ARCH-01)
+The codebase currently contains two Soroban client implementations:
+1. `src/server/clients/sorobanClient.ts`: General-purpose Soroban JSON-RPC client with caching.
+2. `src/server/services/stellar/sorobanClient.ts`: Service-level client with contract simulation and event polling.
 
----
-
-## 14. Security Architecture
-
-- **Zero-Trust Key Management**: No private keys are ever collected or stored.
-- **Input Validation**: Strict Zod schema validation on all incoming API requests.
-- **Rate Limiting**: Express rate limiting (`express-rate-limit`) restricting high-frequency API abuse.
-- **Security Headers**: Helmet.js enforcement of strict CSP, HSTS, and X-Frame-Options.
+**Reconciliation Plan (ARCH-01)**: Consolidate both files into a single, unified client residing in `src/server/clients/sorobanClient.ts`, providing connection pooling, configurable retries, structured error handling, and unified caching.
 
 ---
 
-## 15. Deployment Architecture
+## 11. Environment Variables Specification
 
-Containerized with Docker and deployed to **Google Cloud Run**.
-
-```
-[ Ingress / Nginx Reverse Proxy (Port 3000) ]
-                     │
-         ┌───────────┴───────────┐
-         ▼                       ▼
-[ Cloud Run Container A ]  [ Cloud Run Container B ]
-         │                       │
-         └───────────┬───────────┘
-                     ▼
-  [ Managed Cloud SQL PostgreSQL + TimescaleDB ]
-```
-
----
-
-## 16. Environment Variables Specification
-
-Declared in `.env.example`:
+Documented in `.env.example`:
 
 ```env
-# Server Runtime Environment Variables
-PORT=3000
-NODE_ENV=development
-DATABASE_URL=postgres://user:password@localhost:5432/nolyvatix
-REDIS_URL=redis://localhost:6379
-GEMINI_API_KEY=MY_GEMINI_API_KEY
-STELLAR_HORIZON_URL=https://horizon.stellar.org
-SOROBAN_RPC_URL=https://soroban-rpc.mainnet.stellar.org
-JWT_SECRET=super-secret-jwt-key
+# AI Intelligence (Optional - falls back to heuristic synthesis if omitted)
+GEMINI_API_KEY=""
 
-# Client Public Variables
-VITE_APP_TITLE="Nolyvatix BI Platform"
-VITE_STELLAR_NETWORK="mainnet"
+# Stellar Network Endpoints
+VITE_HORIZON_URL="https://horizon.stellar.org"
+VITE_SOROBAN_RPC_URL="https://mainnet.sorobanrpc.com"
+
+# Local Development Auth Fallback
+ALLOW_DEV_FALLBACK="true"
+
+# Optional PostgreSQL Database (Drizzle ORM)
+# If left unset, in-memory repositories activate automatically
+SQL_HOST=""
+SQL_PORT="5432"
+SQL_DB_NAME=""
+SQL_USER=""
+SQL_PASSWORD=""
 ```
 
 ---
 
-## 17. Logging Strategy
+## 12. Testing Strategy
 
-- **Structured JSON Logging**: Powered by `pino` logger.
-- **Correlation IDs**: All requests tagged with an `X-Correlation-ID` header to trace ledger ingestion through database operations and API responses.
+The backend test suite is executed using Node.js's native test runner via `tsx`:
 
----
-
-## 18. Error Handling Strategy
-
-- Standardized **RFC 7807 Problem Details** for HTTP error responses:
-  ```json
-  {
-    "type": "https://nolyvatix.io/errors/horizon-timeout",
-    "title": "Stellar Horizon Stream Timeout",
-    "status": 504,
-    "detail": "Failed to receive ledger close signal within 15 seconds.",
-    "instance": "/api/v1/ledger/latest"
-  }
-  ```
-- Frontend Global Error Boundaries catching UI crashes with graceful retry controls.
-
----
-
-## 19. Testing Strategy
-
-- **Unit Testing**: Vitest for utility functions, math helpers, and Drizzle query mappers.
-- **Integration Testing**: Supertest against Express API routes with an in-memory PostgreSQL test container.
-- **E2E Testing**: Playwright end-to-end tests covering wallet connection, dashboard creation, and Gemini AI query workflows.
-
----
-
-## 20. CI/CD Pipeline
-
-```mermaid
-flowchart LR
-    A[Git Push / PR] --> B[Stage 1: Lint & TypeCheck]
-    B --> C[Stage 2: Vitest & Supertest]
-    C --> D[Stage 3: Esbuild Docker Image]
-    D --> E[Stage 4: Cloud Run Deployment]
+```bash
+npm test
 ```
+
+- **Runner**: `tsx --test src/server/__tests__/**/*.test.ts`
+- **Current Coverage**: 36 tests across 12 suites covering:
+  - Cache operations (TTL, eviction, stats, regex invalidation)
+  - Horizon client & Soroban client RPC parsing
+  - Database service operations and in-memory fallbacks
+  - Auth middleware & tenant isolation
+  - Standardized response wrapper envelopes
+
+Frontend unit/component testing (Vitest) and end-to-end testing (Playwright) are scheduled for Phase 2.
 
 ---
 *End of Technical Architecture Blueprint.*
