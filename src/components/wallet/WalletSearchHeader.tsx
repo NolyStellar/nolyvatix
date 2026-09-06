@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { Search, Wallet, ShieldCheck, Copy, Check, ExternalLink, ArrowRight, Zap } from 'lucide-react';
+import { isValidStellarPublicKey } from '../../lib/stellar/walletValidator.ts';
+import { truncateAddress } from '../../lib/utils.ts';
+import { useAppStore } from '../../store/useAppStore.ts';
 
 interface WalletSearchHeaderProps {
   searchedAddress: string;
@@ -36,9 +39,14 @@ export const WalletSearchHeader: React.FC<WalletSearchHeaderProps> = ({
   onSearch,
   isLoading,
 }) => {
+  const { wallet } = useAppStore();
   const [inputVal, setInputVal] = useState(searchedAddress);
   const [copied, setCopied] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  React.useEffect(() => {
+    setInputVal(searchedAddress);
+  }, [searchedAddress]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,8 +55,8 @@ export const WalletSearchHeader: React.FC<WalletSearchHeaderProps> = ({
       setErrorMsg('Please enter a Stellar account public address.');
       return;
     }
-    if (!trimmed.startsWith('G') || trimmed.length !== 56) {
-      setErrorMsg('Invalid Stellar public address. Must start with G and be 56 characters long.');
+    if (!isValidStellarPublicKey(trimmed)) {
+      setErrorMsg('Invalid Stellar public address. Must be a valid 56-character Ed25519 public key starting with G.');
       return;
     }
     setErrorMsg('');
@@ -154,6 +162,17 @@ export const WalletSearchHeader: React.FC<WalletSearchHeaderProps> = ({
         <span className="text-[11px] text-zinc-500 font-mono flex items-center gap-1">
           <Zap className="w-3 h-3 text-amber-400" /> Quick Accounts:
         </span>
+        {wallet.isConnected && wallet.publicKey && (
+          <button
+            onClick={() => handlePresetSelect(wallet.publicKey!)}
+            className="px-2.5 py-1 bg-sky-950/60 hover:bg-sky-900/60 border border-sky-600/50 rounded-md text-[11px] text-sky-200 hover:text-white transition-all flex items-center gap-1.5 font-mono"
+            title="Inspect my connected Freighter wallet account"
+          >
+            <Wallet className="w-3 h-3 text-sky-400" />
+            <span className="font-semibold">My Connected Wallet</span>
+            <span className="text-[9px] text-sky-400">({truncateAddress(wallet.publicKey, 4, 4)})</span>
+          </button>
+        )}
         {PRESET_ACCOUNTS.map((acc) => (
           <button
             key={acc.address}

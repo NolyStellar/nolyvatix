@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAccountAnalytics } from '../hooks/useNetworkData';
 import { WalletSearchHeader } from '../components/wallet/WalletSearchHeader';
 import { WalletSummaryCards } from '../components/wallet/WalletSummaryCards';
@@ -7,11 +7,22 @@ import { TransactionIntelligenceSection } from '../components/wallet/Transaction
 import { ActivityTimelineSection } from '../components/wallet/ActivityTimelineSection';
 import { WalletAnalyticsDashboard } from '../components/wallet/WalletAnalyticsDashboard';
 import { AlertCircle, RefreshCw, Wallet } from 'lucide-react';
+import { useAppStore } from '../store/useAppStore';
 
-const DEFAULT_ADDRESS = 'GAUA7XL5K54CC2DDGP77FJ2YBHRJLT36CPZDXWPM6MP7MANOGG77PNJU';
+const DEFAULT_DEMO_ADDRESS = 'GAUA7XL5K54CC2DDGP77FJ2YBHRJLT36CPZDXWPM6MP7MANOGG77PNJU';
 
 export const WalletIntelligenceView: React.FC = () => {
-  const [searchedAddress, setSearchedAddress] = useState<string>(DEFAULT_ADDRESS);
+  const { wallet } = useAppStore();
+  const [searchedAddress, setSearchedAddress] = useState<string>(
+    wallet.isConnected && wallet.publicKey ? wallet.publicKey : DEFAULT_DEMO_ADDRESS
+  );
+
+  // If user connects or changes their wallet, automatically switch view if still on default
+  useEffect(() => {
+    if (wallet.isConnected && wallet.publicKey && searchedAddress === DEFAULT_DEMO_ADDRESS) {
+      setSearchedAddress(wallet.publicKey);
+    }
+  }, [wallet.isConnected, wallet.publicKey]);
 
   const { data: analytics, isLoading, isError, error, refetch } = useAccountAnalytics(searchedAddress);
 

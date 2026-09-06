@@ -21,6 +21,12 @@ import {
   Command,
   ShieldCheck,
   UserCheck,
+  AlertTriangle,
+  ExternalLink,
+  Copy,
+  Check,
+  Loader2,
+  RefreshCw,
 } from 'lucide-react';
 
 export const AppHeader: React.FC = () => {
@@ -31,8 +37,9 @@ export const AppHeader: React.FC = () => {
     setStellarNetwork,
     networkTelemetry,
     wallet,
-    connectMockWallet,
+    connectWallet,
     disconnectWallet,
+    refreshWalletBalance,
     toggleAICopilot,
     aiCopilotOpen,
     setActiveRoute,
@@ -44,6 +51,7 @@ export const AppHeader: React.FC = () => {
   const [networkDropdownOpen, setNetworkDropdownOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [searchInputValue, setSearchInputValue] = useState('');
+  const [copiedKey, setCopiedKey] = useState(false);
 
   // Global keyboard shortcut listener for Cmd+K / Ctrl+K
   useEffect(() => {
@@ -170,13 +178,33 @@ export const AppHeader: React.FC = () => {
           </button>
 
           {/* Web3 Wallet Status / Connect Button */}
-          {wallet.isConnected ? (
+          {wallet.status === 'connecting' ? (
+            <button
+              disabled
+              className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 text-zinc-300 rounded-md text-xs font-mono font-medium flex items-center gap-2 cursor-wait"
+            >
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-400" />
+              <span>Connecting...</span>
+            </button>
+          ) : wallet.isConnected ? (
             <button
               onClick={() => setWalletModalOpen(true)}
-              className="px-3 py-1.5 bg-sky-500/10 border border-sky-500/30 text-sky-300 rounded-md text-xs font-mono font-medium flex items-center gap-2 hover:bg-sky-500/20 transition-colors"
+              className={`px-3 py-1.5 rounded-md text-xs font-mono font-medium flex items-center gap-2 transition-colors ${
+                wallet.networkMismatch
+                  ? 'bg-amber-500/10 border border-amber-500/40 text-amber-300 hover:bg-amber-500/20'
+                  : 'bg-sky-500/10 border border-sky-500/30 text-sky-300 hover:bg-sky-500/20'
+              }`}
+              title={wallet.networkMismatch ? 'Network Mismatch Warning' : 'Freighter Wallet Connected'}
             >
-              <Wallet className="w-3.5 h-3.5 text-sky-400" />
+              {wallet.networkMismatch ? (
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+              ) : (
+                <Wallet className="w-3.5 h-3.5 text-sky-400" />
+              )}
               <span>{truncateAddress(wallet.publicKey)}</span>
+              {wallet.networkMismatch && (
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              )}
             </button>
           ) : (
             <Button
@@ -202,75 +230,175 @@ export const AppHeader: React.FC = () => {
         isOpen={walletModalOpen}
         onClose={() => setWalletModalOpen(false)}
         title="Stellar Web3 Wallet"
-        subtitle="Cryptographic verification for workspaces & alerts"
+        subtitle="Cryptographic verification for accounts & balances"
         maxWidth="sm"
       >
         {wallet.isConnected ? (
           <div className="space-y-4">
-            <div className="p-4 bg-zinc-950 border border-zinc-800 rounded-lg space-y-2 font-mono text-xs">
+            {/* Network Mismatch Notice */}
+            {wallet.networkMismatch && (
+              <div className="p-3 bg-amber-950/40 border border-amber-800/80 rounded-lg flex items-start gap-2.5 text-xs text-amber-200">
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-semibold">Network Mismatch</p>
+                  <p className="text-[11px] text-amber-300/80 leading-relaxed">
+                    Freighter is on <span className="font-mono font-bold uppercase">{String(wallet.walletNetwork)}</span>, but Nolyvatix is exploring <span className="font-mono font-bold uppercase">{stellarNetwork}</span>. Switch network in Freighter or change Nolyvatix network in the header.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="p-4 bg-zinc-950 border border-zinc-800 rounded-lg space-y-2.5 font-mono text-xs">
               <div className="flex items-center justify-between text-zinc-400">
                 <span>Wallet Provider</span>
-                <Badge variant="info">{wallet.name}</Badge>
+                <div className="flex items-center gap-1.5">
+                  <Badge variant="info">{wallet.provider || 'Freighter'}</Badge>
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" title="Connected" />
+                </div>
               </div>
+
               <div className="flex items-center justify-between text-zinc-400">
-                <span>Public Key</span>
-                <span className="text-white font-semibold">{truncateAddress(wallet.publicKey, 6, 6)}</span>
+                <span>Public Account</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-white font-semibold">{truncateAddress(wallet.publicKey, 6, 6)}</span>
+                  <button
+                    onClick={() => {
+                      if (wallet.publicKey) {
+                        navigator.clipboard.writeText(wallet.publicKey);
+                        setCopiedKey(true);
+                        setTimeout(() => setCopiedKey(false), 2000);
+                      }
+                    }}
+                    className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors"
+                    title="Copy Full Public Key"
+                  >
+                    {copiedKey ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                  </button>
+                </div>
               </div>
+
               <div className="flex items-center justify-between text-zinc-400">
-                <span>XLM Balance</span>
-                <span className="text-emerald-400 font-semibold">{wallet.balanceXLM} XLM</span>
+                <span>Wallet Network</span>
+                <Badge variant={wallet.networkMismatch ? 'warning' : 'neutral'}>
+                  {wallet.walletNetwork ? String(wallet.walletNetwork).toUpperCase() : 'UNKNOWN'}
+                </Badge>
+              </div>
+
+              <div className="flex items-center justify-between text-zinc-400 pt-1 border-t border-zinc-900">
+                <span>Native Balance</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-emerald-400 font-semibold">
+                    {wallet.balanceXLM !== null ? `${wallet.balanceXLM.toFixed(4)} XLM` : 'Fetching...'}
+                  </span>
+                  <button
+                    onClick={() => refreshWalletBalance()}
+                    className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors"
+                    title="Refresh Balance"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="space-y-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                leftIcon={<Activity className="w-3.5 h-3.5 text-sky-400" />}
+                onClick={() => {
+                  setWalletModalOpen(false);
+                  setActiveRoute('wallet-intelligence');
+                }}
+                className="w-full justify-center"
+              >
+                Inspect in Wallet Intelligence
+              </Button>
+
               <Button
                 variant="danger"
-                size="md"
-                leftIcon={<LogOut className="w-4 h-4" />}
+                size="sm"
+                leftIcon={<LogOut className="w-3.5 h-3.5" />}
                 onClick={() => {
                   disconnectWallet();
                   setWalletModalOpen(false);
                 }}
-                className="w-full"
+                className="w-full justify-center"
               >
                 Disconnect Wallet
               </Button>
             </div>
           </div>
         ) : (
-          <div className="space-y-3 font-mono">
-            <p className="text-xs text-zinc-400 mb-2">Select your Stellar browser extension wallet:</p>
+          <div className="space-y-4 font-mono text-xs">
+            {/* Status alerts */}
+            {wallet.status === 'unavailable' && (
+              <div className="p-3 bg-amber-950/40 border border-amber-800/80 rounded-lg space-y-2 text-amber-200">
+                <div className="flex items-center gap-2 font-semibold">
+                  <AlertTriangle className="w-4 h-4 text-amber-400" />
+                  <span>Freighter Not Detected</span>
+                </div>
+                <p className="text-[11px] text-amber-300/80 leading-relaxed">
+                  The Freighter browser extension was not detected. Please install Freighter from the official website to connect your Stellar wallet.
+                </p>
+                <a
+                  href="https://www.freighter.app/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[11px] text-sky-400 hover:text-sky-300 underline font-semibold"
+                >
+                  Download Freighter Extension <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            )}
+
+            {wallet.status === 'rejected' && (
+              <div className="p-3 bg-rose-950/40 border border-rose-800/80 rounded-lg space-y-1 text-rose-200">
+                <div className="flex items-center gap-2 font-semibold">
+                  <AlertTriangle className="w-4 h-4 text-rose-400" />
+                  <span>Connection Declined</span>
+                </div>
+                <p className="text-[11px] text-rose-300/80">
+                  Access request was declined in Freighter. Click below to retry.
+                </p>
+              </div>
+            )}
+
+            {wallet.status === 'error' && wallet.error && (
+              <div className="p-3 bg-rose-950/40 border border-rose-800/80 rounded-lg space-y-1 text-rose-200">
+                <div className="flex items-center gap-2 font-semibold">
+                  <AlertTriangle className="w-4 h-4 text-rose-400" />
+                  <span>Wallet Connection Error</span>
+                </div>
+                <p className="text-[11px] text-rose-300/80">{wallet.error}</p>
+              </div>
+            )}
+
+            <p className="text-xs text-zinc-400">Connect your Stellar wallet to inspect accounts and verify on-chain activity:</p>
+
             <button
-              onClick={() => {
-                connectMockWallet('Freighter');
-                setWalletModalOpen(false);
-              }}
-              className="w-full p-3 bg-zinc-900 border border-zinc-800 hover:border-sky-500/50 rounded-lg flex items-center justify-between text-xs text-white hover:bg-zinc-850 transition-all"
+              onClick={() => connectWallet('Freighter')}
+              disabled={wallet.status === 'connecting'}
+              className="w-full p-3 bg-zinc-900 border border-zinc-800 hover:border-purple-500/50 rounded-lg flex items-center justify-between text-xs text-white hover:bg-zinc-850 transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
             >
               <div className="flex items-center gap-2.5">
                 <div className="w-7 h-7 rounded bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold">
-                  F
+                  {wallet.status === 'connecting' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'F'}
                 </div>
-                <span>Freighter Wallet</span>
+                <div className="text-left">
+                  <div className="font-semibold group-hover:text-purple-300 transition-colors">Freighter Wallet</div>
+                  <div className="text-[10px] text-zinc-400">Official Stellar Browser Extension</div>
+                </div>
               </div>
-              <Badge variant="success">Recommended</Badge>
+              <Badge variant="success">Supported</Badge>
             </button>
 
-            <button
-              onClick={() => {
-                connectMockWallet('Albedo');
-                setWalletModalOpen(false);
-              }}
-              className="w-full p-3 bg-zinc-900 border border-zinc-800 hover:border-sky-500/50 rounded-lg flex items-center justify-between text-xs text-white hover:bg-zinc-850 transition-all"
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold">
-                  A
-                </div>
-                <span>Albedo Link</span>
+            <div className="pt-2 border-t border-zinc-900">
+              <div className="p-2.5 bg-zinc-950/60 border border-zinc-850 rounded-lg text-zinc-500 text-[11px] space-y-1">
+                <div className="font-medium text-zinc-400">Upcoming Providers</div>
+                <div>Albedo, WalletConnect, and Ledger hardware wallet support are scheduled for future roadmap phases.</div>
               </div>
-              <span className="text-zinc-500 text-[10px]">Web Auth</span>
-            </button>
+            </div>
           </div>
         )}
       </Modal>

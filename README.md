@@ -50,9 +50,13 @@ The platform ingests real-time Stellar ledger Server-Sent Events (SSE), payment 
 - **Identity & Access Management**: Firebase ID token authentication middleware with Just-In-Time (JIT) local database user synchronization.
 - **Development Operator Fallback**: Seamless local development mode (`ALLOW_DEV_FALLBACK=true`) bypasses mandatory authentication for rapid iteration.
 
-### 🛡️ Web3 Stellar Wallet Integration *(Mock / Demo Workflow)*
-- **Interface Modal**: Wallet selection modal supporting **Freighter** and **Albedo** workflows.
-- **Status**: Currently simulated via test account state (`connectMockWallet`); full cryptographic browser extension injection (`@stellar/freighter-api`) and Ed25519 challenge-response signing are on the active roadmap.
+### 🛡️ Web3 Stellar Wallet Integration *(Implemented — Freighter)*
+- **Real Freighter Integration**: Full browser extension handshake using `@stellar/freighter-api` with zero simulated delays or fake keys.
+- **Cryptographic Validation**: Rigorous client-side verification complying with SEP-0023 StrKey specifications and CRC16-XModem checksum validation before any account is accepted.
+- **Horizon Balance Sync**: Live on-chain native XLM balance synchronization for connected accounts.
+- **Network Mismatch Detection**: Real-time cross-network verification comparing the active Freighter wallet network with Nolyvatix's configured network (Mainnet / Testnet).
+- **Decoupled Architecture**: Stellar wallet state is completely decoupled from Firebase multi-tenant workspace authentication.
+- **Deep Intelligence Hook**: One-click "My Connected Wallet" quick-navigation into the Wallet Intelligence analyzer.
 
 ---
 

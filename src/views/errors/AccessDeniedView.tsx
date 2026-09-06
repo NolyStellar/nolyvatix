@@ -22,7 +22,7 @@ export const AccessDeniedView: React.FC = () => {
             Workspace Permission Required
           </h1>
           <p className="text-xs text-zinc-400 font-mono max-w-sm mx-auto leading-relaxed">
-            This workspace board or alert configuration is restricted. Authenticate with an authorized Stellar Web3 wallet (Freighter / Albedo) or switch to a public workspace.
+            This workspace board or alert configuration is restricted. Authenticate with an authorized tenant account or switch to a public workspace. Stellar Web3 wallet connection is independent of tenant workspace access.
           </p>
         </div>
 

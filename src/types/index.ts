@@ -26,11 +26,25 @@ export type NavRoute =
   | 'server-error'
   | 'offline';
 
+export type WalletConnectionStatus =
+  | 'disconnected'
+  | 'connecting'
+  | 'connected'
+  | 'unavailable'
+  | 'rejected'
+  | 'error'
+  | 'network_mismatch';
+
 export interface WalletState {
+  status: WalletConnectionStatus;
   isConnected: boolean;
   publicKey: string | null;
-  name: string | null; // e.g. 'Freighter', 'Albedo'
-  balanceXLM: number;
+  name: string | null; // e.g. 'Freighter'
+  provider: 'Freighter' | null;
+  walletNetwork: StellarNetwork | string | null;
+  networkMismatch: boolean;
+  balanceXLM: number | null;
+  error: string | null;
 }
 
 export interface NetworkTelemetry {
