@@ -16,33 +16,55 @@ if (getApps().length === 0) {
 
 export const auth: Auth = getAuth(app);
 
+// Flag to track whether anonymous authentication is disabled on the Firebase project
+let isAnonymousAuthDisabled = false;
+let pendingSignIn: Promise<string | null> | null = null;
+
 /**
  * Ensures the client has an active Firebase user session (anonymous or authenticated)
- * Returns the current Firebase ID Token string
+ * Returns the current Firebase ID Token string, or null if unauthenticated / anonymous sign-in is disabled.
  */
 export async function getAuthToken(): Promise<string | null> {
-  let currentUser = auth.currentUser;
-
-  if (!currentUser) {
-    try {
-      const userCredential = await signInAnonymously(auth);
-      currentUser = userCredential.user;
-    } catch (err) {
-      console.warn('Anonymous sign-in failed or blocked:', err);
-      return null;
-    }
-  }
+  const currentUser = auth.currentUser;
 
   if (currentUser) {
     try {
       return await currentUser.getIdToken();
-    } catch (err) {
-      console.warn('Failed to retrieve Firebase ID Token:', err);
+    } catch {
       return null;
     }
   }
 
-  return null;
+  // If anonymous sign-in was previously restricted or disabled, avoid repeated failed network calls
+  if (isAnonymousAuthDisabled) {
+    return null;
+  }
+
+  if (pendingSignIn) {
+    return pendingSignIn;
+  }
+
+  pendingSignIn = (async () => {
+    try {
+      const userCredential = await signInAnonymously(auth);
+      return await userCredential.user.getIdToken();
+    } catch (err: any) {
+      const code = err?.code || '';
+      if (
+        code === 'auth/admin-restricted-operation' ||
+        code === 'auth/operation-not-allowed' ||
+        code === 'auth/configuration-not-found'
+      ) {
+        // Anonymous sign-in provider is disabled in this Firebase project; switch to dev/operator mode
+        isAnonymousAuthDisabled = true;
+      }
+      return null;
+    } finally {
+      pendingSignIn = null;
+    }
+  })();
+
+  return pendingSignIn;
 }
 
 export { app, signInAnonymously, onAuthStateChanged };

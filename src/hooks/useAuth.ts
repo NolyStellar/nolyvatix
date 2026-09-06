@@ -13,6 +13,9 @@ export interface AuthState {
   signOut: () => Promise<void>;
 }
 
+let hasAttemptedAutoSignIn = false;
+let isAnonymousAuthRestricted = false;
+
 export function useAuth(): AuthState {
   const [user, setUser] = useState<User | null>(auth.currentUser);
   const [loading, setLoading] = useState(true);
@@ -30,16 +33,31 @@ export function useAuth(): AuthState {
         }
         setLoading(false);
       } else {
-        try {
-          const cred = await signInAnonymously(auth);
-          setUser(cred.user);
-          const idToken = await cred.user.getIdToken();
-          setToken(idToken);
-        } catch (err) {
-          console.warn('Anonymous sign-in failed:', err);
+        if (!hasAttemptedAutoSignIn && !isAnonymousAuthRestricted) {
+          hasAttemptedAutoSignIn = true;
+          try {
+            const cred = await signInAnonymously(auth);
+            setUser(cred.user);
+            const idToken = await cred.user.getIdToken();
+            setToken(idToken);
+          } catch (err: any) {
+            const code = err?.code || '';
+            if (
+              code === 'auth/admin-restricted-operation' ||
+              code === 'auth/operation-not-allowed' ||
+              code === 'auth/configuration-not-found'
+            ) {
+              // Anonymous auth provider disabled in Firebase Console
+              isAnonymousAuthRestricted = true;
+            }
+            setUser(null);
+            setToken(null);
+          } finally {
+            setLoading(false);
+          }
+        } else {
           setUser(null);
           setToken(null);
-        } finally {
           setLoading(false);
         }
       }
@@ -49,12 +67,21 @@ export function useAuth(): AuthState {
   }, []);
 
   const signIn = async () => {
+    if (isAnonymousAuthRestricted) return;
     setLoading(true);
     try {
       const cred = await signInAnonymously(auth);
       setUser(cred.user);
       const idToken = await cred.user.getIdToken();
       setToken(idToken);
+    } catch (err: any) {
+      const code = err?.code || '';
+      if (
+        code === 'auth/admin-restricted-operation' ||
+        code === 'auth/operation-not-allowed'
+      ) {
+        isAnonymousAuthRestricted = true;
+      }
     } finally {
       setLoading(false);
     }
