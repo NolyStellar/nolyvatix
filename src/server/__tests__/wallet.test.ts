@@ -13,6 +13,8 @@ import {
 import {
   normalizeFreighterError,
   isFreighterAvailable,
+  connectFreighter,
+  fetchNativeBalance,
   FreighterWalletError,
 } from '../../services/wallet/freighterService.ts';
 
@@ -136,5 +138,96 @@ describe('WALLET-01: Freighter Error Normalization & Environment Safety', () => 
     const normalized = normalizeFreighterError(err);
     assert.strictEqual(normalized.code, 'UNKNOWN_WALLET_ERROR');
     assert.strictEqual(normalized.message, 'Unexpected RPC failure');
+  });
+
+  test('connectFreighter cleanly throws FREIGHTER_NOT_INSTALLED in Node/CI environments', async () => {
+    await assert.rejects(
+      async () => {
+        await connectFreighter('mainnet');
+      },
+      (err: any) => {
+        assert.ok(err instanceof FreighterWalletError);
+        assert.strictEqual(err.code, 'FREIGHTER_NOT_INSTALLED');
+        return true;
+      }
+    );
+  });
+});
+
+describe('WALLET-01: Horizon Native Balance Synchronization & Network Isolation', () => {
+  const VALID_MAINNET_ADDRESS = 'GAUA7XL5K54CC2DDGP77FJ2YBHRJLT36CPZDXWPM6MP7MANOGG77PNJU';
+
+  test('fetchNativeBalance returns null immediately for invalid public key without calling fetch', async () => {
+    const originalFetch = globalThis.fetch;
+    let fetchCalled = false;
+    globalThis.fetch = (async () => {
+      fetchCalled = true;
+      throw new Error('Network call should not occur for invalid key');
+    }) as any;
+
+    try {
+      const balance = await fetchNativeBalance('INVALID_KEY');
+      assert.strictEqual(balance, null);
+      assert.strictEqual(fetchCalled, false);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('fetchNativeBalance returns numeric native XLM balance using mocked Horizon API response', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (url: string) => {
+      assert.ok(String(url).includes(VALID_MAINNET_ADDRESS));
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          status: 'success',
+          data: [
+            { asset_type: 'native', balance: '124.5678900' },
+            { asset_type: 'credit_alphanum4', asset_code: 'USDC', balance: '50.0000000' },
+          ],
+        }),
+      } as Response;
+    }) as any;
+
+    try {
+      const balance = await fetchNativeBalance(VALID_MAINNET_ADDRESS);
+      assert.strictEqual(balance, 124.56789);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('fetchNativeBalance returns 0 for 404 unfunded account status', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => {
+      return {
+        ok: false,
+        status: 404,
+        json: async () => ({ status: 'error', message: 'Account not found' }),
+      } as Response;
+    }) as any;
+
+    try {
+      const balance = await fetchNativeBalance(VALID_MAINNET_ADDRESS);
+      assert.strictEqual(balance, 0);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('fetchNativeBalance returns null gracefully on network failure without throwing', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => {
+      throw new Error('Connection refused (simulated offline CI)');
+    }) as any;
+
+    try {
+      const balance = await fetchNativeBalance(VALID_MAINNET_ADDRESS);
+      assert.strictEqual(balance, null);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });
