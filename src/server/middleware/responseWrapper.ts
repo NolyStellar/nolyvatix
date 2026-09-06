@@ -58,18 +58,74 @@ export function sendError(res: Response, message: string, statusCode = 400, code
   res.status(statusCode).json(createErrorResponse(resolvedCode, message, details));
 }
 
+/**
+ * Sanitizes details objects to prevent leaking credentials, connection strings, or system paths
+ */
+function sanitizeErrorDetails(details: unknown): unknown {
+  if (!details || typeof details !== 'object') {
+    return details;
+  }
+
+  if (Array.isArray(details)) {
+    return details.map(sanitizeErrorDetails);
+  }
+
+  const sensitiveKeyPatterns = [/secret/i, /key/i, /token/i, /password/i, /credential/i, /conn/i, /auth/i];
+  const sanitized: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(details as Record<string, unknown>)) {
+    const isSensitive = sensitiveKeyPatterns.some((p) => p.test(key));
+    if (isSensitive) {
+      sanitized[key] = '[REDACTED]';
+    } else if (typeof value === 'string') {
+      // Strip internal filesystem paths
+      sanitized[key] = value.replace(/(\/|\b)(node_modules|src\/server|home|usr)[\w/-]+/g, '[REDACTED_PATH]');
+    } else if (typeof value === 'object' && value !== null) {
+      sanitized[key] = sanitizeErrorDetails(value);
+    } else {
+      sanitized[key] = value;
+    }
+  }
+
+  return sanitized;
+}
+
 export function globalErrorHandler(
-  err: Error,
+  err: any,
   _req: Request,
   res: Response,
   _next: NextFunction
 ): void {
-  if (err instanceof AppError) {
-    logger.warn(`AppError [${err.errorCode}]: ${err.message}`, { statusCode: err.statusCode, details: err.details });
-    res.status(err.statusCode).json(createErrorResponse(err.errorCode, err.message, err.details));
+  // 1. Request payload exceeds size limit (from express body-parser)
+  if (err?.type === 'entity.too.large' || err?.statusCode === 413) {
+    logger.warn('Request body rejected: payload too large');
+    res.status(413).json(createErrorResponse('PAYLOAD_TOO_LARGE', 'Request payload exceeds maximum allowed size (1MB).'));
     return;
   }
 
-  logger.error(`Unhandled Exception: ${err.message}`, { stack: err.stack });
-  res.status(500).json(createErrorResponse('INTERNAL_SERVER_ERROR', 'An unexpected error occurred in the Stellar Data Engine.'));
+  // 2. Malformed JSON syntax error in body
+  if (err instanceof SyntaxError && 'body' in err) {
+    logger.warn('Request body rejected: malformed JSON syntax');
+    res.status(400).json(createErrorResponse('INVALID_JSON', 'Malformed JSON in request payload.'));
+    return;
+  }
+
+  // 3. Known domain AppError
+  if (err instanceof AppError) {
+    logger.warn(`AppError [${err.errorCode}]: ${err.message}`, { statusCode: err.statusCode, details: err.details });
+    const sanitizedDetails = sanitizeErrorDetails(err.details);
+    res.status(err.statusCode).json(createErrorResponse(err.errorCode, err.message, sanitizedDetails));
+    return;
+  }
+
+  // 4. Unhandled server exception
+  logger.error(`Unhandled Exception: ${err?.message || err}`, { stack: err?.stack });
+
+  // In production, strictly avoid exposing internal details, message contents, or stack traces
+  const isProduction = process.env.NODE_ENV === 'production';
+  const errorMessage = isProduction
+    ? 'An unexpected error occurred in the Stellar Data Engine.'
+    : err?.message || 'An unexpected error occurred in the Stellar Data Engine.';
+
+  res.status(500).json(createErrorResponse('INTERNAL_SERVER_ERROR', errorMessage));
 }

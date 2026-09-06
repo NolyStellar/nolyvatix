@@ -71,8 +71,13 @@ import { createWorkspaceRouter } from './routes/workspaceRoutes.ts';
 import { createSearchRouter } from './routes/searchRoutes.ts';
 import { createSettingsRouter } from './routes/settingsRoutes.ts';
 
-// Auth Middleware
+// Auth & Security Middleware
 import { authenticateUser } from './middleware/authMiddleware.ts';
+import {
+  sorobanRateLimiter,
+  aiRateLimiter,
+  searchRateLimiter,
+} from './middleware/rateLimitMiddleware.ts';
 
 import { Logger } from './utils/logger.ts';
 
@@ -218,9 +223,9 @@ export function initializeDataEngine(
   apiRouter.use('/assets', createAssetRouter(assetService));
   apiRouter.use('/liquidity-pools', createLiquidityPoolRouter(poolService));
   apiRouter.use('/operations', createOperationRouter(opService));
-  apiRouter.use('/soroban', createSorobanRouter(sorobanService));
-  apiRouter.use('/ai', createAiRouter(aiService));
-  apiRouter.use('/search', createSearchRouter(searchService));
+  apiRouter.use('/soroban', sorobanRateLimiter.middleware(), createSorobanRouter(sorobanService));
+  apiRouter.use('/ai', aiRateLimiter.middleware(), createAiRouter(aiService));
+  apiRouter.use('/search', searchRateLimiter.middleware(), createSearchRouter(searchService));
 
   // Protected User & Tenant-Scoped Domain Routes
   apiRouter.use('/dashboards', authenticateUser, createDashboardRouter(dashboardService));
