@@ -9,6 +9,7 @@ import { SorobanClient } from '../clients/sorobanClient.js';
 import { StellarCache } from '../cache/stellarCache.js';
 import { StellarEventBus } from '../services/stellar/stellarEventBus.js';
 import { formatSuccessResponse } from '../middleware/responseWrapper.js';
+import { checkDatabaseHealth } from '../../db/index.ts';
 
 export function createHealthRouter(
   horizonClient: StellarHorizonClient,
@@ -40,11 +41,12 @@ export function createHealthRouter(
     const sorobanStats = sorobanClient.getHealthStats();
     const cacheMetrics = cache.getMetrics();
     const eventBusMetrics = eventBus.getMetrics();
+    const dbHealth = await checkDatabaseHealth();
 
     const overallStatus: 'healthy' | 'degraded' | 'down' =
-      horizonStats.status === 'healthy' && sorobanStats.status === 'healthy'
+      horizonStats.status === 'healthy' && sorobanStats.status === 'healthy' && dbHealth.status !== 'unavailable'
         ? 'healthy'
-        : horizonStats.status === 'down' && sorobanStats.status === 'down'
+        : (horizonStats.status === 'down' && sorobanStats.status === 'down') || dbHealth.status === 'unavailable'
         ? 'down'
         : 'degraded';
 
@@ -53,6 +55,15 @@ export function createHealthRouter(
       uptimeSeconds: Math.floor((Date.now() - startTime) / 1000),
       network: horizonClient.getNetwork(),
       services: {
+        database: {
+          status: dbHealth.status,
+          mode: dbHealth.mode,
+          configured: dbHealth.configured,
+          connected: dbHealth.connected,
+          latencyMs: dbHealth.latencyMs,
+          pool: dbHealth.pool,
+          error: dbHealth.error,
+        },
         horizon: {
           status: horizonStats.status,
           endpoint: horizonStats.endpoint,

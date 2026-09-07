@@ -1,6 +1,7 @@
 import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from './schema.ts';
+import { getDatabaseConfig, DatabaseConfig, isDatabaseConfigured as checkDbConfigured } from './config.ts';
 
 // Global connection pool caching to persist across hot-reloads and module re-evaluations
 declare global {
@@ -8,29 +9,30 @@ declare global {
   var _drizzleDb: NodePgDatabase<typeof schema> | undefined;
 }
 
+const config: DatabaseConfig = getDatabaseConfig();
+
 export const isDbConfigured = (): boolean => {
-  return Boolean(process.env.SQL_HOST && process.env.SQL_DB_NAME && process.env.SQL_USER);
+  return config.configured;
 };
 
 export const createPool = (): Pool | null => {
-  if (!isDbConfigured()) {
+  if (!config.configured) {
     return null;
   }
 
   if (!global._postgresPool) {
     global._postgresPool = new Pool({
-      host: process.env.SQL_HOST,
-      user: process.env.SQL_USER,
-      password: process.env.SQL_PASSWORD,
-      database: process.env.SQL_DB_NAME,
-      port: process.env.SQL_PORT ? parseInt(process.env.SQL_PORT, 10) : 5432,
-      max: 10,
-      connectionTimeoutMillis: 15000,
+      connectionString: config.url,
+      max: config.maxConnections,
+      idleTimeoutMillis: config.idleTimeoutMillis,
+      connectionTimeoutMillis: config.connectionTimeoutMillis,
+      ssl: config.ssl,
+      allowExitOnIdle: true,
     });
 
     // Prevent unhandled pool-level errors from crashing the application
     global._postgresPool.on('error', (err) => {
-      console.error('[PostgresPool] Unexpected error on idle SQL pool client:', err);
+      console.error('[Nolyvatix Database] Unexpected error on idle PostgreSQL pool client:', err.message);
     });
   }
   return global._postgresPool;
@@ -44,4 +46,85 @@ export const db: NodePgDatabase<typeof schema> | null = pool
   ? (global._drizzleDb ??= drizzle(pool, { schema }))
   : null;
 
+if (!config.configured) {
+  if (config.requireDb) {
+    throw new Error(
+      '[Nolyvatix Database Fatal] REQUIRE_DB is enabled, but DATABASE_URL is not configured.'
+    );
+  }
+  if (process.env.NODE_ENV !== 'test') {
+    console.info(
+      '[Nolyvatix Database] DATABASE_URL is not set. Operating in in-memory development/demo fallback mode.'
+    );
+  }
+}
+
+export interface DatabaseHealthStatus {
+  status: 'healthy' | 'unavailable' | 'not_configured';
+  mode: 'postgresql' | 'in_memory_fallback';
+  configured: boolean;
+  connected: boolean;
+  latencyMs?: number;
+  pool?: {
+    totalCount: number;
+    idleCount: number;
+    waitingCount: number;
+  };
+  error?: string;
+}
+
+export async function checkDatabaseHealth(): Promise<DatabaseHealthStatus> {
+  if (!config.configured || !pool) {
+    return {
+      status: 'not_configured',
+      mode: 'in_memory_fallback',
+      configured: false,
+      connected: false,
+    };
+  }
+
+  const start = Date.now();
+  try {
+    const client = await pool.connect();
+    try {
+      await client.query('SELECT 1');
+      const latencyMs = Date.now() - start;
+      return {
+        status: 'healthy',
+        mode: 'postgresql',
+        configured: true,
+        connected: true,
+        latencyMs,
+        pool: {
+          totalCount: pool.totalCount,
+          idleCount: pool.idleCount,
+          waitingCount: pool.waitingCount,
+        },
+      };
+    } finally {
+      client.release();
+    }
+  } catch (err: any) {
+    const rawMsg = err?.message || String(err);
+    const sanitizedMsg = rawMsg.replace(/(password=)[^& ]+/gi, '$1****');
+    return {
+      status: 'unavailable',
+      mode: 'postgresql',
+      configured: true,
+      connected: false,
+      error: sanitizedMsg,
+    };
+  }
+}
+
+export async function closeDatabasePool(): Promise<void> {
+  if (global._postgresPool) {
+    await global._postgresPool.end();
+    global._postgresPool = undefined;
+    global._drizzleDb = undefined;
+  }
+}
+
+export { isDatabaseConfigured, getDatabaseConfig, sanitizeDatabaseUrl } from './config.ts';
 export * from './schema.ts';
+

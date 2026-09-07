@@ -4,22 +4,21 @@ import * as dotenv from 'dotenv';
 // Load environment variables from .env file if present.
 dotenv.config();
 
-const sqlHost = process.env.SQL_HOST;
-const sqlDbName = process.env.SQL_DB_NAME;
-const user = process.env.SQL_ADMIN_USER;
-const password = process.env.SQL_ADMIN_PASSWORD;
+let connectionUrl = process.env.DATABASE_URL || '';
 
-if (!sqlHost) {
-  throw new Error('SQL_HOST must be set in environment variables.');
-}
-if (!sqlDbName) {
-  throw new Error('SQL_DB_NAME must be set in environment variables.');
-}
-if (!user) {
-  throw new Error('SQL_ADMIN_USER must be set in environment variables.');
-}
-if (!password) {
-  throw new Error('SQL_ADMIN_PASSWORD must be set in environment variables.');
+if (!connectionUrl && process.env.SQL_HOST && process.env.SQL_DB_NAME) {
+  const user = encodeURIComponent(process.env.SQL_ADMIN_USER || process.env.SQL_USER || 'postgres');
+  const password = process.env.SQL_ADMIN_PASSWORD || process.env.SQL_PASSWORD
+    ? `:${encodeURIComponent(process.env.SQL_ADMIN_PASSWORD || process.env.SQL_PASSWORD || '')}`
+    : '';
+  const host = process.env.SQL_HOST;
+  const port = process.env.SQL_PORT || '5432';
+  const dbName = process.env.SQL_DB_NAME;
+  if (host.startsWith('/')) {
+    connectionUrl = `postgresql://${user}${password}@/${dbName}?host=${encodeURIComponent(host)}`;
+  } else {
+    connectionUrl = `postgresql://${user}${password}@${host}:${port}/${dbName}`;
+  }
 }
 
 export default defineConfig({
@@ -28,11 +27,9 @@ export default defineConfig({
   dialect: 'postgresql',
   schemaFilter: ['public'],
   dbCredentials: {
-    host: sqlHost,
-    user: user,
-    password: password,
-    database: sqlDbName,
-    ssl: false,
+    url: connectionUrl || 'postgresql://placeholder:placeholder@localhost:5432/nolyvatix',
   },
   verbose: true,
+  strict: true,
 });
+
