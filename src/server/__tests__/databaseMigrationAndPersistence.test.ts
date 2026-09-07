@@ -133,10 +133,10 @@ describe('DB-01: Schema Integrity & Drizzle Table Definitions', () => {
     assert.ok(fs.existsSync(migrationFilePath), `Migration file ${firstEntry.tag}.sql must exist`);
 
     const sqlContent = fs.readFileSync(migrationFilePath, 'utf8');
-    assert.ok(sqlContent.includes('CREATE TABLE IF NOT EXISTS "users"'));
-    assert.ok(sqlContent.includes('CREATE TABLE IF NOT EXISTS "dashboards"'));
-    assert.ok(sqlContent.includes('CREATE TABLE IF NOT EXISTS "reports"'));
-    assert.ok(sqlContent.includes('CREATE TABLE IF NOT EXISTS "alert_rules"'));
+    assert.ok(sqlContent.includes('CREATE TABLE "users"'));
+    assert.ok(sqlContent.includes('CREATE TABLE "dashboards"'));
+    assert.ok(sqlContent.includes('CREATE TABLE "reports"'));
+    assert.ok(sqlContent.includes('CREATE TABLE "alert_rules"'));
   });
 
   after(async () => {
