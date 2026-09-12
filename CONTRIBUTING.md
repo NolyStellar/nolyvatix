@@ -44,11 +44,11 @@ Whether you're fixing a bug, adding a new Soroban contract decoder feature, impr
    ```
    Open `http://localhost:3000` in your browser.
 
-5. **Run Backend Tests**:
+5. **Run Unified Test Suite**:
    ```bash
    npm test
    ```
-   Runs the test suite (36 unit and integration test cases across 12 suites) using Node.js's native test runner via `tsx --test`.
+   Runs the unified test suite (126 unit and integration test cases across 29 suites) covering backend and frontend tests.
 
 6. **Run Typechecks and Linting**:
    ```bash
@@ -62,12 +62,12 @@ Whether you're fixing a bug, adding a new Soroban contract decoder feature, impr
 
 ---
 
-## ⚠️ Current Development Limitations & Technical Debt
+## ⚠️ Current Development Status & Architecture Highlights
 
-Contributors should be aware of the following ongoing architecture states:
-1. **Zero-Configuration In-Memory Persistence**: While full Drizzle ORM schemas exist (`src/db/schema.ts`), deterministic migration scripts and Docker Compose are not yet implemented. Repositories automatically use in-memory collections when database variables are unset.
-2. **Web3 Wallet Flow**: The wallet connection modal currently simulates connection state (`connectMockWallet`). Native browser extension integration (`@stellar/freighter-api`) and cryptographic Ed25519 signature challenges are in progress.
-3. **Canonical Soroban Client**: Consolidated under ARCH-01. All Soroban RPC operations are unified in `src/server/clients/sorobanClient.ts` with exponential backoff retries, health diagnostics, and fee estimations.
+Contributors should be aware of the following architectural states:
+1. **Persistence & Migrations**: Full Drizzle ORM schemas exist (`src/db/schema.ts`) with versioned SQL migrations (`drizzle/0000_nolyvatix_init.sql`) and automated verification (`npm run db:check`). Repositories automatically use in-memory collections when database variables are unset for zero-configuration local development.
+2. **Web3 Wallet Flow**: Real Freighter browser extension integration (`@stellar/freighter-api`) with SEP-0023 StrKey address validation and live on-chain native balance synchronization.
+3. **Canonical Soroban Client**: Consolidated under ARCH-01. All Soroban RPC operations are unified in `src/server/clients/sorobanClient.ts` with exponential backoff retries, health diagnostics, and fee estimations. Dedicated standalone APM frontend view is currently in progress.
 
 ---
 
@@ -144,4 +144,4 @@ Maintainers look for:
 1. **Adherence to Type Safety**: No implicit `any` or missing interfaces.
 2. **Performance**: Efficient re-rendering, proper memoization or query caching.
 3. **Security**: Server-side proxying for sensitive API keys.
-4. **UI Consistency**: Alignment with Nolyvatix / LumenIQ design tokens.
+4. **UI Consistency**: Alignment with Nolyvatix design tokens.

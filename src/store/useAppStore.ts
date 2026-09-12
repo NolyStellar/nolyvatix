@@ -38,7 +38,7 @@ interface AppStore {
 }
 
 export const useAppStore = create<AppStore>((set, get) => ({
-  // Default dark theme matching Nolyvatix / LumenIQ design specification
+  // Default dark theme matching Nolyvatix design specification
   theme: 'dark',
   sidebarCollapsed: false,
   aiCopilotOpen: false,

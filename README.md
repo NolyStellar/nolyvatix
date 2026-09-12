@@ -1,7 +1,8 @@
 # Nolyvatix - Open-Source Stellar Blockchain BI & Analytics Platform
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Build Status](https://img.shields.io/badge/Build-Passing-emerald)](https://github.com/nolyvatix/nolyvatix)
+[![CI](https://github.com/nolyvatix/nolyvatix/actions/workflows/ci.yml/badge.svg)](https://github.com/nolyvatix/nolyvatix/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/Tests-126%20Passing-emerald)](https://github.com/nolyvatix/nolyvatix)
 [![React](https://img.shields.io/badge/React-19.0-sky)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4.0-38bdf8)](https://tailwindcss.com/)
@@ -20,10 +21,12 @@ The platform ingests real-time Stellar ledger Server-Sent Events (SSE), payment 
 - **Network Throughput Analytics**: Time-series telemetry graphs for Transactions Per Second (TPS) and payment volume velocity.
 - **Stellar Network Switcher**: Seamless toggling between Stellar `Mainnet` and `Testnet` environments.
 
-### 🔍 Soroban WASM APM & Profiler *(Implemented)*
-- **Smart Contract Inspection**: Real-time contract lookup by address (`C...`), bytecode hash, and metadata.
-- **WASM Gas & Resource Profiling**: CPU instruction cycles and memory footprint tracking.
-- **Contract Event Log Decoder**: Streaming contract event topic decoding and invocation success rates.
+### 🔍 Soroban RPC Telemetry & Smart Contract Ingestion *(Implemented on Backend / Standalone UI in Roadmap)*
+- **Consolidated Soroban Client**: Unified JSON-RPC 2.0 client (`https://mainnet.sorobanrpc.com`) with exponential backoff retries.
+- **Smart Contract Inspection**: Address lookup (`C...`), bytecode hash retrieval, and JSON-RPC health probes via `/api/soroban/*`.
+- **WASM Gas & Resource Tracking**: Telemetry endpoints for CPU instruction cycles, memory footprint, and fee stats.
+- **Event Log Ingestion**: Decoded WASM contract event topics and execution metrics.
+*(Note: A dedicated standalone UI view for deep contract profiling is currently scheduled on the frontend roadmap; contract telemetry is actively accessible via the Command Center and REST API).*
 
 ### 🌐 Assets & Anchor Corridors *(Implemented)*
 - **Cross-Border Corridor Velocity**: Real-time tracking of fiat-pegged stablecoins (USDC, EURC) and anchor settlement speeds.
@@ -60,20 +63,6 @@ The platform ingests real-time Stellar ledger Server-Sent Events (SSE), payment 
 
 ---
 
-## 🖼️ Screenshots & Interface Preview
-
-*(Interface captures from the working Nolyvatix application)*
-
-| Real-Time Command Center | Gemini AI Co-Pilot Drawer |
-| :---: | :---: |
-| ![Command Center Dashboard](https://raw.githubusercontent.com/nolyvatix/nolyvatix/main/docs/assets/command-center-preview.png) | ![Gemini AI Co-Pilot](https://raw.githubusercontent.com/nolyvatix/nolyvatix/main/docs/assets/ai-copilot-preview.png) |
-
-| Soroban WASM APM & Profiler | Assets & Anchor Corridors |
-| :---: | :---: |
-| ![Soroban APM](https://raw.githubusercontent.com/nolyvatix/nolyvatix/main/docs/assets/soroban-apm-preview.png) | ![Anchor Corridors](https://raw.githubusercontent.com/nolyvatix/nolyvatix/main/docs/assets/anchor-corridors-preview.png) |
-
----
-
 ## 🏛️ Architecture Overview
 
 Nolyvatix is built as a full-stack, decoupled modular application combining high-performance blockchain ingestion with an Express API and React 19 client:
@@ -91,18 +80,20 @@ Nolyvatix is built as a full-stack, decoupled modular application combining high
 │   • Server-Sent Events (SSE) Bus (StellarEventBus)                      │
 │   • High-Performance Dual-Tier Caching (MemoryCache + StellarCache)     │
 │   • Firebase Auth & Tenant Isolation Middleware (with Dev Fallback)     │
+│   • Production Security (Helmet, CSP, Dynamic CORS, 4-Tier Rate Limits) │
 │   • Google Gemini AI SDK (@google/genai) with Live Horizon Context      │
 └─────────────────┬─────────────────────────────────────┬─────────────────┘
                   │                                     │
 ┌─────────────────▼─────────────────┐ ┌─────────────────▼─────────────────┐
 │   Database Tier (PostgreSQL)      │ │     Stellar Network Tier          │
 │   • 11 Tables via Drizzle ORM     │ │   • Stellar Horizon REST / SSE    │
-│   • Automatic In-Memory Fallback  │ │   • Soroban JSON-RPC 2.0 Client   │
-│     (zero local setup required)   │ │     (https://mainnet.sorobanrpc.com)
+│   • Versioned SQL Migrations      │ │   • Soroban JSON-RPC 2.0 Client   │
+│   • Automatic In-Memory Fallback  │ │     (https://mainnet.sorobanrpc.com)
+│     (zero local setup required)   │ │                                   │
 └───────────────────────────────────┘ └───────────────────────────────────┘
 ```
 
-For full technical specifications, refer to [ARCHITECTURE.md](docs/ARCHITECTURE.md) and [PRD.md](docs/PRD.md).
+For full technical specifications, refer to [ARCHITECTURE.md](docs/ARCHITECTURE.md), [DEPLOYMENT.md](docs/DEPLOYMENT.md), and [PRD.md](docs/PRD.md).
 
 ---
 
@@ -113,11 +104,11 @@ For full technical specifications, refer to [ARCHITECTURE.md](docs/ARCHITECTURE.
 - **State & Data Fetching**: [Zustand 5](https://zustand-demo.pmnd.rs/), [@tanstack/react-query](https://tanstack.com/query)
 - **Data Visualization**: [Recharts](https://recharts.org/)
 - **Backend API**: [Express 4](https://expressjs.com/), [Node.js](https://nodejs.org/)
-- **Database & ORM**: [Drizzle ORM](https://orm.drizzle.team/), PostgreSQL driver (`pg`), [Drizzle Kit](https://orm.drizzle.team/kit-docs/overview) (with in-memory fallback repositories)
+- **Database & ORM**: [Drizzle ORM](https://orm.drizzle.team/), PostgreSQL driver (`pg`), [Drizzle Kit](https://orm.drizzle.team/kit-docs/overview) (with versioned SQL migrations and in-memory fallback repositories)
 - **Authentication**: Firebase Auth & Firebase Admin SDK
-- **Blockchain Integrations**: Stellar Horizon REST/SSE, Soroban JSON-RPC 2.0
+- **Blockchain Integrations**: Stellar Horizon REST/SSE, Soroban JSON-RPC 2.0, Freighter Wallet (`@stellar/freighter-api`)
 - **AI Engine**: Google Gemini 2.5 Flash SDK (`@google/genai`) with fallback heuristic synthesis
-- **Testing**: Node.js Test Runner (`tsx --test`)
+- **Testing**: Unified test suite with 126 tests across 29 suites (Node.js test runner via `tsx --test` + Vitest)
 - **Icons**: [Lucide React](https://lucide.dev/)
 
 ---
@@ -140,7 +131,7 @@ For full technical specifications, refer to [ARCHITECTURE.md](docs/ARCHITECTURE.
 
 2. **Install Dependencies**:
    ```bash
-   npm install
+   npm ci
    ```
 
 3. **Configure Environment Variables**:
@@ -162,30 +153,32 @@ For full technical specifications, refer to [ARCHITECTURE.md](docs/ARCHITECTURE.
    ALLOW_DEV_FALLBACK="true"
 
    # Optional PostgreSQL Database (leave blank to use built-in in-memory repositories)
-   SQL_HOST=""
-   SQL_DB_NAME=""
-   SQL_USER=""
-   SQL_PASSWORD=""
+   DATABASE_URL="postgresql://postgres:password@localhost:5432/nolyvatix"
    ```
 
-4. **Start Local Development Server**:
+4. **Verify Database Migrations**:
+   ```bash
+   npm run db:check
+   ```
+
+5. **Start Local Development Server**:
    ```bash
    npm run dev
    ```
    Open `http://localhost:3000` in your browser.
 
-5. **Run Unified Test Suite**:
+6. **Run Unified Test Suite**:
    ```bash
    npm test
    ```
    Executes 126 backend and frontend tests across 29 suites (Node.js test runner for backend, Vitest for frontend).
 
-6. **Typecheck & Linting**:
+7. **Typecheck & Linting**:
    ```bash
    npm run lint
    ```
 
-7. **Production Build & Verification**:
+8. **Production Build & Verification**:
    ```bash
    npm run build
    npm run start
@@ -200,12 +193,16 @@ For full technical specifications, refer to [ARCHITECTURE.md](docs/ARCHITECTURE.
 /
 ├── .github/                       # GitHub Templates & Workflows
 │   ├── ISSUE_TEMPLATE/            # Bug Report, Feature Request, Docs Templates
+│   ├── workflows/ci.yml           # Automated CI Pipeline
 │   └── PULL_REQUEST_TEMPLATE.md   # Pull Request Template
 ├── docs/                          # Technical Documentation
 │   ├── ARCHITECTURE.md            # System Architecture Blueprint
+│   ├── DEPLOYMENT.md              # 12-Factor Production Deployment & Ops Guide
 │   ├── PRD.md                     # Product Requirements Document
 │   ├── LABELS.md                  # GitHub Label Taxonomy
 │   └── PROJECT_BOARD.md           # Project Board Structure
+├── drizzle/                       # Database Migrations
+│   └── 0000_nolyvatix_init.sql    # Versioned Initial Schema Migration
 ├── src/                           # Application Source Code
 │   ├── components/                # Modular UI Design System
 │   │   ├── ai/                    # Gemini AI Co-Pilot Drawer
@@ -214,6 +211,7 @@ For full technical specifications, refer to [ARCHITECTURE.md](docs/ARCHITECTURE.
 │   │   └── ui/                    # Button, GlassCard, Badge, Input, StatusChip, Modal
 │   ├── db/                        # Database Schema & Persistence
 │   │   ├── schema.ts              # Drizzle ORM Schema (11 Relational Tables)
+│   │   ├── migrate.ts             # Programmatic Migration Runner
 │   │   ├── index.ts               # Connection Pool & In-Memory Fallback Detector
 │   │   └── drizzle.config.ts      # Drizzle Kit Configuration
 │   ├── lib/                       # Utility Functions (formatting, cn, storage)
@@ -223,7 +221,7 @@ For full technical specifications, refer to [ARCHITECTURE.md](docs/ARCHITECTURE.
 │   │   ├── cache/                 # MemoryCache & StellarCache In-Memory Layers
 │   │   ├── clients/               # HorizonClient, SorobanClient, FirebaseAdmin
 │   │   ├── dataEngine.ts          # Dependency Injection & API Gateway Wireup
-│   │   ├── middleware/            # Auth, Tenant Isolation, Error Handlers
+│   │   ├── middleware/            # Auth, Security, Rate Limiting, Error Handlers
 │   │   ├── repositories/          # Domain & DB Repositories (with In-Memory Fallbacks)
 │   │   ├── routes/                # 17 Modular API Express Routers
 │   │   ├── services/              # Domain Services (Ledger, Soroban, AI, Alerts, etc.)
@@ -249,9 +247,9 @@ For full technical specifications, refer to [ARCHITECTURE.md](docs/ARCHITECTURE.
 ## 🗺️ Roadmap Overview
 
 Development is organized across clear operational phases:
-- **Completed**: Real-Time Command Center, Soroban WASM APM, Assets & Anchor Corridors, BI Dashboard Builder, Alert Center, Report Builder, Gemini AI with live context and fallback, Express API with 17 routers, Drizzle schema (11 tables) with in-memory fallbacks, and 36 backend tests.
-- **In Progress**: Real cryptographic Web3 wallet integration (Freighter/Albedo browser extension signing), duplicate Soroban client consolidation, database migration runner pipeline.
-- **Planned**: Automated CI/CD pipeline, frontend component tests, external Discord/Slack webhook dispatch workers, production rate limiting, and Kubernetes/Helm charts.
+- **Completed**: Real-Time Command Center, Canonical Soroban RPC Client (`https://mainnet.sorobanrpc.com`) with health diagnostics and event ingestion, Assets & Anchor Corridors, BI Dashboard Builder, Alert Center, Report Builder, Gemini AI with live context and fallback, Express API with 17 routers, Drizzle schema (11 tables) with versioned SQL migrations (`npm run db:check`), real Freighter wallet integration with SEP-0023 StrKey validation, production security middleware (HSTS, CSP, dynamic CORS, rate limiting), graceful shutdown and health probes, and 126 automated tests across 29 suites with zero failures.
+- **In Progress**: Dedicated standalone Soroban APM UI view (`src/views/SorobanAPMView.tsx`), and external webhook notification dispatch workers.
+- **Planned**: Shareable public dashboard links, Docker Compose local multi-container stack, Kubernetes Helm charts, and autonomous AI root-cause anomaly engine.
 
 For the full detailed status breakdown, visit [ROADMAP.md](ROADMAP.md).
 
