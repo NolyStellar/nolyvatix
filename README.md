@@ -174,11 +174,11 @@ For full technical specifications, refer to [ARCHITECTURE.md](docs/ARCHITECTURE.
    ```
    Open `http://localhost:3000` in your browser.
 
-5. **Run Backend Test Suite**:
+5. **Run Unified Test Suite**:
    ```bash
    npm test
    ```
-   Executes 36 unit and integration test cases across 12 suites via `tsx --test`.
+   Executes 126 backend and frontend tests across 29 suites (Node.js test runner for backend, Vitest for frontend).
 
 6. **Typecheck & Linting**:
    ```bash
@@ -190,6 +190,7 @@ For full technical specifications, refer to [ARCHITECTURE.md](docs/ARCHITECTURE.
    npm run build
    npm run start
    ```
+   For detailed production runtime configuration, Docker/Kubernetes deployment, health probes, and graceful shutdown specifications, see [DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ---
 

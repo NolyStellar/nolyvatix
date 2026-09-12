@@ -11,6 +11,13 @@ import { corsMiddleware } from './src/server/middleware/corsMiddleware.js';
 import { securityHeadersMiddleware } from './src/server/middleware/securityHeadersMiddleware.js';
 import { globalApiRateLimiter } from './src/server/middleware/rateLimitMiddleware.js';
 import { logger } from './src/server/utils/logger.js';
+import { closeDatabasePool } from './src/db/index.js';
+
+let isShuttingDown = false;
+
+export function getIsShuttingDown(): boolean {
+  return isShuttingDown;
+}
 
 async function startServer(): Promise<void> {
   const app = express();
@@ -38,7 +45,9 @@ async function startServer(): Promise<void> {
   app.use('/api', globalApiRateLimiter.middleware());
 
   // 7. Initialize Stellar Data Engine & mount API routes
-  const dataEngine = initializeDataEngine();
+  const dataEngine = initializeDataEngine(undefined, undefined, undefined, {
+    isShuttingDown: () => isShuttingDown,
+  });
   app.use('/api', dataEngine.apiRouter);
 
   // Vite Middleware for Dev / Static fallback for Prod
@@ -59,9 +68,57 @@ async function startServer(): Promise<void> {
   // Global Error Handler Middleware
   app.use(globalErrorHandler);
 
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     logger.info(`Nolyvatix Express Server running on http://0.0.0.0:${PORT}`);
   });
+
+  // Graceful Shutdown Handler (SIGTERM & SIGINT)
+  const shutdown = (signal: string) => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+    logger.info(`Received ${signal}. Initiating orderly graceful shutdown...`);
+
+    // 1. Stop accepting new HTTP connections
+    server.close((err) => {
+      if (err) {
+        logger.error('Error while closing HTTP server listener:', { error: err });
+      } else {
+        logger.info('HTTP listener closed.');
+      }
+    });
+
+    // 2. Stop event bus worker and disconnect active SSE clients
+    try {
+      dataEngine.eventBus.stopWorker();
+      dataEngine.eventBus.closeAllClients();
+      logger.info('Event bus background workers stopped and SSE clients drained.');
+    } catch (err) {
+      logger.warn('Error during event bus shutdown:', { error: err });
+    }
+
+    // 3. Close PostgreSQL pool
+    closeDatabasePool()
+      .then(() => {
+        logger.info('Database connection pool closed successfully.');
+      })
+      .catch((err) => {
+        logger.warn('Error closing database connection pool:', { error: err });
+      })
+      .finally(() => {
+        logger.info('Graceful shutdown completed successfully. Exiting process.');
+        process.exit(0);
+      });
+
+    // 4. Force exit timeout after 10s if graceful shutdown hangs
+    const forceExitTimer = setTimeout(() => {
+      logger.error('Graceful shutdown timed out after 10s. Forcing process exit.');
+      process.exit(1);
+    }, 10000);
+    forceExitTimer.unref();
+  };
+
+  process.once('SIGTERM', () => shutdown('SIGTERM'));
+  process.once('SIGINT', () => shutdown('SIGINT'));
 }
 
 startServer().catch((err) => {

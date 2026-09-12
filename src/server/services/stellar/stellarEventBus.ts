@@ -136,6 +136,22 @@ export class StellarEventBus extends EventEmitter {
   }
 
   /**
+   * Gracefully drains and closes all connected SSE clients on server shutdown.
+   */
+  public closeAllClients(): void {
+    for (const client of this.clients.values()) {
+      try {
+        client.response.write(`event: shutdown\ndata: ${JSON.stringify({ message: 'Server shutting down' })}\n\n`);
+        client.response.end();
+      } catch {
+        // Ignore failures during socket closure
+      }
+    }
+    this.clients.clear();
+    logger.info('Drained and closed all active SSE client connections.');
+  }
+
+  /**
    * Broadcasts typed payload to all subscribed clients.
    */
   public broadcast(topic: StellarEventTopic, eventName: string, data: unknown): void {

@@ -73,6 +73,7 @@ import { createSettingsRouter } from './routes/settingsRoutes.ts';
 
 // Auth & Security Middleware
 import { authenticateUser } from './middleware/authMiddleware.ts';
+import { createErrorResponse } from './middleware/responseWrapper.ts';
 import {
   sorobanRateLimiter,
   aiRateLimiter,
@@ -130,7 +131,8 @@ export interface DataEngineInstance {
 export function initializeDataEngine(
   customHorizonClient?: HorizonClient,
   customSorobanClient?: SorobanClient,
-  customCache?: MemoryCache
+  customCache?: MemoryCache,
+  options?: { isShuttingDown?: () => boolean }
 ): DataEngineInstance {
   logger.info('Initializing Nolyvatix Stellar Production Data Engine...');
 
@@ -210,7 +212,7 @@ export function initializeDataEngine(
   const apiRouter = Router();
 
   // Public System Health & Diagnostics
-  apiRouter.use('/health', createHealthRouter(stellarHorizonClient, sorobanClient, stellarCache, eventBus));
+  apiRouter.use('/health', createHealthRouter(stellarHorizonClient, sorobanClient, stellarCache, eventBus, options?.isShuttingDown));
 
   // Real-Time Server-Sent Events (SSE)
   apiRouter.use('/stream', createStreamRouter(eventBus));
@@ -233,6 +235,14 @@ export function initializeDataEngine(
   apiRouter.use('/alerts', authenticateUser, createAlertRouter(alertService));
   apiRouter.use('/workspaces', authenticateUser, createWorkspaceRouter(workspaceService));
   apiRouter.use('/settings', authenticateUser, createSettingsRouter(settingsService));
+
+  // Fallback 404 handler for any unhandled /api/* routes
+  // Guarantees unknown API endpoints return structured JSON 404 rather than leaking into SPA HTML
+  apiRouter.all('*', (req, res) => {
+    res.status(404).json(
+      createErrorResponse('NOT_FOUND', `API endpoint not found: ${req.method} ${req.originalUrl || req.baseUrl + req.path}`)
+    );
+  });
 
   logger.info('Stellar Production Data Engine successfully initialized with Firebase Auth, Cloud SQL Repositories, Event Bus, SSE, and all routes.');
 
