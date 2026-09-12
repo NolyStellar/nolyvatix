@@ -21,7 +21,7 @@ export function getIsShuttingDown(): boolean {
 
 async function startServer(): Promise<void> {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.APP_PORT) || 3000;
 
   // 1. Trust Proxy Configuration
   // Configured to trust the first upstream hop (Cloud Run / nginx ingress reverse proxy).
